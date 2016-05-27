@@ -87,15 +87,18 @@ export class GuaranteedCommands {
     }
 
     public extract(clientMsgId: string): any {
-        var index;
-        var command = this.openCommands.find(function (command, i) {
-            index = i;
-            return command.msg.clientMsgId === clientMsgId;
-        });
-        if (index !== undefined) {
-            this.openCommands.splice(index, 1);
+        var openCommands = this.openCommands;
+        var openCommandsLength = openCommands.length;
+        var command;
+        var index = 0;
+        while (index < openCommandsLength) {
+            var command = openCommands[index];
+            if (command.msg.clientMsgId === clientMsgId) {
+                openCommands.splice(index, 1);
+                return command;
+            }
+            index += 1;
         }
-        return command;
     }
 
 }
@@ -157,15 +160,18 @@ export class Commands {
     }
 
     public extract(clientMsgId: string): any {
-        var index;
-        var command = this.openCommands.find(function (command, i) {
-            index = i;
-            return command.msg.clientMsgId === clientMsgId;
-        });
-        if (index !== undefined) {
-            this.openCommands.splice(index, 1);
+        var openCommands = this.openCommands;
+        var openCommandsLength = openCommands.length;
+        var command;
+        var index = 0;
+        while (index < openCommandsLength) {
+            var command = openCommands[index];
+            if (command.msg.clientMsgId === clientMsgId) {
+                openCommands.splice(index, 1);
+                return command;
+            }
+            index += 1;
         }
-        return command;
     }
 
 }
