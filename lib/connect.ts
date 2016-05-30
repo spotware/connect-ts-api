@@ -141,22 +141,28 @@ export class Commands {
     }
 
     public create(msg: any): JQueryDeferred<any> {
+        var openCommands = this.openCommands;
+
         var command = new Command(msg);
 
-        this.openCommands.push(command);
+        openCommands.push(command);
 
         if (this.state.isConnected()) {
             this.send(msg);
         } else {
             command.fail(<any>undefined);
+            openCommands.splice(openCommands.indexOf(command), 1);
         }
         return command.promise;
     }
 
     public fail() {
-        this.openCommands.forEach(function (command) {
+        var openCommands = this.openCommands;
+        var command;
+        for (var i = 0; i < openCommands.length; i += 1) {
+            command = openCommands.pop();
             command.fail();
-        });
+        }
     }
 
     public extract(clientMsgId: string): any {
@@ -275,10 +281,17 @@ export class Connect extends EventEmitter {
         var clientMsgId = data.clientMsgId;
 
         if (clientMsgId) {
-            this.processMessage(msg, clientMsgId, payloadType);
-        } else {
-            this.processPushEvent(msg, payloadType);
+            var command = this.guaranteedCommands.extract(clientMsgId) || this.commands.extract(clientMsgId);
+            if (command) {
+                if (this.isError(payloadType)) {
+                    command.fail(msg);
+                } else {
+                    command.done(msg);
+                }
+                return;
+            }
         }
+        this.processPushEvent(msg, payloadType);
     }
 
     protected isError(payloadType): boolean {
@@ -287,14 +300,7 @@ export class Connect extends EventEmitter {
     }
 
     protected processMessage(msg: any, clientMsgId: string, payloadType: number) {
-        var command = this.guaranteedCommands.extract(clientMsgId) || this.commands.extract(clientMsgId);
-        if (command) {
-            if (this.isError(payloadType)) {
-                command.fail(msg);
-            } else {
-                command.done(msg);
-            }
-        }
+
     }
 
     protected processPushEvent(msg, payloadType) {
