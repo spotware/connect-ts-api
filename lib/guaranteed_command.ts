@@ -1,10 +1,11 @@
 export class GuaranteedCommand {
-
-    private msg: any;
+    public clientMsgId: string;
+    public msg: any;
     public promise: JQueryDeferred<any>;
 
-    constructor(msg: any) {
-        this.msg = msg;
+    constructor(params) {
+        this.clientMsgId = params.clientMsgId;
+        this.msg = params.msg;
         this.promise = $.Deferred();
     }
 
@@ -13,7 +14,13 @@ export class GuaranteedCommand {
         this.destroy();
     }
 
+    public fail(msg: any) {
+        this.promise.reject(msg);
+        this.destroy();
+    }
+
     private destroy() {
+        delete this.clientMsgId;
         delete this.msg;
     }
 }

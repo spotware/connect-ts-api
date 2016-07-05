@@ -1,8 +1,8 @@
 export declare class Command {
-    private msg;
+    clientMsgId: string;
     promise: JQueryDeferred<any>;
-    constructor(msg: any);
+    constructor(params: any);
     done(respond: any): void;
-    fail(): void;
+    fail(respond: any): void;
     private destroy();
 }

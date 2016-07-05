@@ -5,7 +5,7 @@ export class Commands {
 
     private state: State;
     private send: any;
-    private openCommands: any;
+    private openCommands: Command[];
 
     constructor(params: any) {
         this.state = params.state;
@@ -13,42 +13,47 @@ export class Commands {
         this.openCommands = [];
     }
 
-    public create(msg: any): JQueryDeferred<any> {
-        var command = new Command(msg);
+    public create(params): JQueryDeferred<any> {
+        var clientMsgId = params.clientMsgId;
+        var msg = params.msg;
 
-        this.openCommands.push(command);
+        var openCommands = this.openCommands;
+
+        var command = new Command({
+            clientMsgId: clientMsgId
+        });
+
+        openCommands.push(command);
 
         if (this.state.isConnected()) {
             this.send(msg);
         } else {
-            command.fail();
+            command.fail(<any>undefined);
+            openCommands.splice(openCommands.indexOf(command), 1);
         }
         return command.promise;
     }
 
-    public findAndResolve(msg: any, clientMsgId: string) {
-        var command = this.find(clientMsgId);
-        if (command) {
-            this.delete(command);
-            command.done(msg);
-            return true;
+    public fail() {
+        var openCommands = this.openCommands;
+        var command;
+        for (var i = 0; i < openCommands.length; i += 1) {
+            command = openCommands.pop();
+            command.fail();
         }
     }
 
-    public fail() {
-        this.openCommands.forEach(function (command) {
-            command.fail();
-        });
+    public extract(clientMsgId: string): Command {
+        var openCommands = this.openCommands;
+        var openCommandsLength = openCommands.length;
+        var command;
+        for (var i = 0; i < openCommandsLength; i += 1) {
+            command = openCommands[i];
+            if (command.clientMsgId === clientMsgId) {
+                openCommands.splice(i, 1);
+                return command;
+            }
+        }
     }
 
-    private find(clientMsgId: string) {
-        return this.openCommands.find(function (command) {
-            return command.msg.clientMsgId === clientMsgId;
-        });
-    }
-
-    private delete(command: Command) {
-        var index = this.openCommands.indexOf(command);
-        this.openCommands.splice(index, 1);
-    }
 }

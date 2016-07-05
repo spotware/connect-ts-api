@@ -1,189 +1,14 @@
 'use strict';
 
+var hat = require('hat');
 import {EventEmitter} from 'events';
-
-//import {State} from './state';
-//import {GuaranteedCommands} from './guaranteed_commands';
-//import {GuaranteedCommand} from './guaranteed_command';
-//import {Commands} from './commands';
-//import {Command} from './command';
-
-export class State {
-
-    private value: boolean;
-
-    constructor() {
-        this.disconnected();
-    }
-
-    public disconnected(): void {
-        this.value = false;
-    }
-
-    public connected(): void {
-        this.value = true;
-    }
-
-    public isConnected(): boolean {
-        return this.value;
-    }
-
-}
-
-export class GuaranteedCommand {
-
-    private msg: any;
-    public promise: JQueryDeferred<any>;
-
-    constructor(msg: any) {
-        this.msg = msg;
-        this.promise = $.Deferred();
-    }
-
-    public done(msg: any) {
-        this.promise.resolve(msg);
-        this.destroy();
-    }
-
-    public fail(msg: any) {
-        this.promise.reject(msg);
-        this.destroy();
-    }
-
-    private destroy() {
-        delete this.msg;
-    }
-}
-
-export class GuaranteedCommands {
-
-    private state: State;
-    private send: any;
-    private openCommands: any;
-
-    constructor(params: any) {
-        this.state = params.state;
-        this.send = params.send;
-        this.openCommands = [];
-    }
-
-    public create(msg: any): JQueryDeferred<any> {
-        var command = new GuaranteedCommand(msg);
-
-        this.openCommands.push(command);
-
-        if (this.state.isConnected()) {
-            this.send(msg);
-        }
-        return command.promise;
-    }
-
-    public resend() {
-        this.openCommands
-            .map(function (command) {
-                return command.msg;
-            })
-            .forEach(this.send);
-    }
-
-    public extract(clientMsgId: string): any {
-        var openCommands = this.openCommands;
-        var openCommandsLength = openCommands.length;
-        var command;
-        var index = 0;
-        while (index < openCommandsLength) {
-            var command = openCommands[index];
-            if (command.msg.clientMsgId === clientMsgId) {
-                openCommands.splice(index, 1);
-                return command;
-            }
-            index += 1;
-        }
-    }
-
-}
-
-export class Command {
-
-    private msg: any;
-    public promise: JQueryDeferred<any>;
-
-    constructor(msg: any) {
-        this.msg = msg;
-        this.promise = $.Deferred();
-    }
-
-    public done(respond: any) {
-        this.promise.resolve(respond);
-        this.destroy();
-    }
-
-    public fail(respond: any) {
-        this.promise.reject(respond);
-        this.destroy();
-    }
-
-    private destroy() {
-        delete this.msg;
-    }
-}
-
-export class Commands {
-
-    private state: State;
-    private send: any;
-    private openCommands: any;
-
-    constructor(params: any) {
-        this.state = params.state;
-        this.send = params.send;
-        this.openCommands = [];
-    }
-
-    public create(msg: any): JQueryDeferred<any> {
-        var openCommands = this.openCommands;
-
-        var command = new Command(msg);
-
-        openCommands.push(command);
-
-        if (this.state.isConnected()) {
-            this.send(msg);
-        } else {
-            command.fail(<any>undefined);
-            openCommands.splice(openCommands.indexOf(command), 1);
-        }
-        return command.promise;
-    }
-
-    public fail() {
-        var openCommands = this.openCommands;
-        var command;
-        for (var i = 0; i < openCommands.length; i += 1) {
-            command = openCommands.pop();
-            command.fail();
-        }
-    }
-
-    public extract(clientMsgId: string): any {
-        var openCommands = this.openCommands;
-        var openCommandsLength = openCommands.length;
-        var command;
-        var index = 0;
-        while (index < openCommandsLength) {
-            var command = openCommands[index];
-            if (command.msg.clientMsgId === clientMsgId) {
-                openCommands.splice(index, 1);
-                return command;
-            }
-            index += 1;
-        }
-    }
-
-}
+import {State} from './state';
+import {GuaranteedCommands} from './guaranteed_commands';
+import {GuaranteedCommand} from './guaranteed_command';
+import {Commands} from './commands';
+import {Command} from './command';
 
 export interface IConnectionParams {
-    adapter: any
     encodeDecode: any
     protocol: any
 }
@@ -198,13 +23,16 @@ export class Connect extends EventEmitter {
     private commands: Commands;
 
     constructor(params: IConnectionParams) {
-        super()
+        super();
 
-        this.adapter = params.adapter;
         this.encodeDecode = params.encodeDecode;
         this.protocol = params.protocol;
 
         this.initialization();
+    }
+
+    public getAdapter() {
+        return this.adapter;
     }
 
     public setAdapter(adapter: any) {
@@ -227,8 +55,8 @@ export class Connect extends EventEmitter {
         );
     }
 
-    public start() {
-        var def = $.Deferred();
+    public start(): JQueryPromise<void> {
+        var def = $.Deferred<void>();
 
         var adapter = this.adapter;
         adapter.onOpen = () => {
@@ -243,7 +71,7 @@ export class Connect extends EventEmitter {
 
         adapter.connect();
 
-        return def;
+        return def.promise();
     }
 
     private onData(data) {
@@ -257,21 +85,30 @@ export class Connect extends EventEmitter {
         this.onConnect();
     }
 
-    public sendGuaranteedCommand(payloadType, params): JQueryDeferred<any> {
-        return this.guaranteedCommands.create(
-            this.protocol.encode(payloadType, params)
-        );
+    public sendGuaranteedCommand(payloadType: number, params): JQueryDeferred<any> {
+        var clientMsgId: string = hat();
+        var msg = this.protocol.encode(payloadType, params, clientMsgId);
+
+        return this.guaranteedCommands.create({
+            clientMsgId: clientMsgId,
+            msg: msg
+        });
     }
 
-    public sendCommand(payloadType, params): JQueryDeferred<any> {
-        return this.commands.create(
-            this.protocol.encode(payloadType, params)
-        );
+    public sendCommand(payloadType: number, params): JQueryDeferred<any> {
+        var clientMsgId: string = hat();
+        var msg = this.protocol.encode(payloadType, params, clientMsgId);
+
+        return this.commands.create({
+            clientMsgId: clientMsgId,
+            msg: msg
+        });
     }
 
-    private send(msg) {
-        var data = this.encodeDecode.encode(msg);
-        this.adapter.send(data);
+    private send(data) {
+        this.adapter.send(
+            this.encodeDecode.encode(data)
+        );
     }
 
     private onMessage(data) {
@@ -281,17 +118,23 @@ export class Connect extends EventEmitter {
         var clientMsgId = data.clientMsgId;
 
         if (clientMsgId) {
-            var command = this.guaranteedCommands.extract(clientMsgId) || this.commands.extract(clientMsgId);
-            if (command) {
-                if (this.isError(payloadType)) {
-                    command.fail(msg);
-                } else {
-                    command.done(msg);
-                }
-                return;
-            }
+            this.processData(clientMsgId, payloadType, msg);
+        } else {
+            this.processPushEvent(msg, payloadType);
         }
-        this.processPushEvent(msg, payloadType);
+    }
+
+    private processData(clientMsgId, payloadType, msg) {
+        var command = this.extractCommand(clientMsgId);
+        if (command) {
+            this.processMessage(command, msg, payloadType);
+        } else {
+            this.processPushEvent(msg, payloadType);
+        }
+    }
+
+    private extractCommand(clientMsgId) {
+        return this.guaranteedCommands.extract(clientMsgId) || this.commands.extract(clientMsgId);
     }
 
     protected isError(payloadType): boolean {
@@ -299,8 +142,12 @@ export class Connect extends EventEmitter {
         return false;
     }
 
-    protected processMessage(msg: any, clientMsgId: string, payloadType: number) {
-
+    protected processMessage(command, msg, payloadType) {
+        if (this.isError(payloadType)) {
+            command.fail(msg);
+        } else {
+            command.done(msg);
+        }
     }
 
     protected processPushEvent(msg, payloadType) {

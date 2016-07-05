@@ -5,7 +5,7 @@ export class GuaranteedCommands {
 
     private state: State;
     private send: any;
-    private openCommands: any;
+    private openCommands: GuaranteedCommand[];
 
     constructor(params: any) {
         this.state = params.state;
@@ -13,13 +13,13 @@ export class GuaranteedCommands {
         this.openCommands = [];
     }
 
-    public create(msg: any): JQueryDeferred<any> {
-        var command = new GuaranteedCommand(msg);
+    public create(params): JQueryDeferred<any> {
+        var command = new GuaranteedCommand(params);
 
         this.openCommands.push(command);
 
         if (this.state.isConnected()) {
-            this.send(msg);
+            this.send(command.msg);
         }
         return command.promise;
     }
@@ -32,23 +32,17 @@ export class GuaranteedCommands {
             .forEach(this.send);
     }
 
-    public findAndResolve(msg, clientMsgId) {
-        var command = this.find(clientMsgId);
-        if (command) {
-            this.delete(command);
-            command.done(msg);
-            return true;
+    public extract(clientMsgId: string): GuaranteedCommand {
+        var openCommands = this.openCommands;
+        var openCommandsLength = openCommands.length;
+        var command;
+        for (var i = 0; i < openCommandsLength; i += 1) {
+            command = openCommands[i];
+            if (command.clientMsgId === clientMsgId) {
+                openCommands.splice(i, 1);
+                return command;
+            }
         }
     }
 
-    private find(clientMsgId) {
-        return this.openCommands.find(function (command) {
-            return command.msg.clientMsgId === clientMsgId;
-        });
-    }
-
-    private delete(command) {
-        var index = this.openCommands.indexOf(command);
-        this.openCommands.splice(index, 1);
-    }
 }

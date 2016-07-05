@@ -1,11 +1,10 @@
+import { Command } from './command';
 export declare class Commands {
     private state;
     private send;
     private openCommands;
     constructor(params: any);
-    create(msg: any): JQueryDeferred<any>;
-    findAndResolve(msg: any, clientMsgId: string): boolean;
+    create(params: any): JQueryDeferred<any>;
     fail(): void;
-    private find(clientMsgId);
-    private delete(command);
+    extract(clientMsgId: string): Command;
 }
