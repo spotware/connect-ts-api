@@ -1,16 +1,27 @@
-'use strict';
-
 var hat = require('hat');
 import {EventEmitter} from 'events';
-import {State} from './state';
-import {GuaranteedCommands} from './guaranteed_commands';
-import {GuaranteedCommand} from './guaranteed_command';
-import {Commands} from './commands';
-import {Command} from './command';
+
+interface IIncommingMessagesListener {
+    handler: (payload: IMessage) => void;
+    shouldProcess: (payload: IMessage) => boolean;
+    disconnectHandler: () => void;
+}
+
+export interface IMessage {
+    clientMsgId: string;
+    payloadType: number;
+    payload?: any;
+}
+
+export interface IMessageWOMsgId {
+    payloadType: number;
+    payload?: any;
+}
 
 export interface IConnectionParams {
     encodeDecode: any
-    protocol: any
+    protocol: any;
+    onPushEvent?: (message: IMessageWOMsgId) => void;
 }
 
 export class Connect extends EventEmitter {
@@ -18,15 +29,18 @@ export class Connect extends EventEmitter {
     private adapter: any;
     private encodeDecode: any;
     private protocol: any;
-    private state: State;
-    private guaranteedCommands: GuaranteedCommands;
-    private commands: Commands;
+    private _isConnected = false;
+    private incomingMessagesListeners: IIncommingMessagesListener[] = [];
+    private handlePushEvent: (message: IMessageWOMsgId) => void;
+    private callbacksOnConnect: (() => void)[] = [];
 
     constructor(params: IConnectionParams) {
         super();
 
         this.encodeDecode = params.encodeDecode;
         this.protocol = params.protocol;
+
+        this.handlePushEvent = params.onPushEvent;
 
         this.initialization();
     }
@@ -40,16 +54,6 @@ export class Connect extends EventEmitter {
     }
 
     private initialization() {
-        this.state = new State();
-        this.guaranteedCommands = new GuaranteedCommands({
-            state: this.state,
-            send: this.send.bind(this)
-        });
-        this.commands = new Commands({
-            state: this.state,
-            send: this.send.bind(this)
-        });
-
         this.encodeDecode.registerDecodeHandler(
             this.onMessage.bind(this)
         );
@@ -79,30 +83,21 @@ export class Connect extends EventEmitter {
     }
 
     private onOpen() {
-        this.state.connected();
+        this._isConnected = true;
 
-        this.guaranteedCommands.resend();
         this.onConnect();
+
+        this.callbacksOnConnect.forEach(fn => fn());
+
+        this.callbacksOnConnect = [];
     }
 
-    public sendGuaranteedCommand(payloadType: number, params): JQueryDeferred<any> {
-        var clientMsgId: string = hat();
-        var msg = this.protocol.encode(payloadType, params, clientMsgId);
-
-        return this.guaranteedCommands.create({
-            clientMsgId: clientMsgId,
-            msg: msg
-        });
+    public sendGuaranteedCommand(payloadType: number, params) {
+        return this.sendGuaranteedCommandWithPayloadtype(payloadType, params).then(msg => msg.payload);
     }
 
-    public sendCommand(payloadType: number, params): JQueryDeferred<any> {
-        var clientMsgId: string = hat();
-        var msg = this.protocol.encode(payloadType, params, clientMsgId);
-
-        return this.commands.create({
-            clientMsgId: clientMsgId,
-            msg: msg
-        });
+    public sendCommand(payloadType: number, params) {
+        return this.sendCommandWithPayloadtype(payloadType, params).then(msg => msg.payload);
     }
 
     private send(data) {
@@ -125,16 +120,24 @@ export class Connect extends EventEmitter {
     }
 
     private processData(clientMsgId, payloadType, msg) {
-        var command = this.extractCommand(clientMsgId);
-        if (command) {
-            this.processMessage(command, msg, payloadType);
-        } else {
+        var isProcessed = false;
+
+        var message = {
+            clientMsgId: clientMsgId,
+            payloadType: payloadType,
+            payload: msg
+        };
+
+        this.incomingMessagesListeners.forEach(listener => {
+            if (listener.shouldProcess(message)) {
+                isProcessed = true;
+                listener.handler(message);
+            }
+        });
+
+        if (!isProcessed) {
             this.processPushEvent(msg, payloadType);
         }
-    }
-
-    private extractCommand(clientMsgId) {
-        return this.guaranteedCommands.extract(clientMsgId) || this.commands.extract(clientMsgId);
     }
 
     protected isError(payloadType): boolean {
@@ -151,21 +154,110 @@ export class Connect extends EventEmitter {
     }
 
     protected processPushEvent(msg, payloadType) {
+        if (this.handlePushEvent) {
+            this.handlePushEvent({payload: msg, payloadType});
+        }
+
         this.emit(payloadType, msg);
     }
 
     private _onEnd(e) {
-        this.state.disconnected();
-        this.commands.fail();
+        this._isConnected = false;
+        this.incomingMessagesListeners.forEach(listener => {
+            listener.disconnectHandler();
+        });
+        this.incomingMessagesListeners = [];
         this.onEnd(e);
     }
 
     public isDisconnected() {
-        return !this.state.isConnected();
+        return !this._isConnected;
     }
 
     public isConnected() {
-        return this.state.isConnected();
+        return this._isConnected;
+    }
+
+    private addIncomingMessagesListener (fnToAdd: IIncommingMessagesListener) {
+        this.incomingMessagesListeners.push(fnToAdd);
+    }
+
+    private removeIncomingMesssagesListener(fnToRemove: IIncommingMessagesListener) {
+        this.incomingMessagesListeners = this.incomingMessagesListeners.filter(fn => fn != fnToRemove);
+    }
+
+    public sendCommandWithoutResponse(payloadType: number, payload: Object) {
+        this.send(this.protocol.encode(payloadType, payload, hat()));
+    }
+
+    public sendMultiresponseCommand(payloadType: number, payload: Object, onMessage: (data) => boolean, onError?: () => void) {
+        var msgId = hat();
+
+        var incomingMessagesListener = {
+            handler: (msg) => {
+                var shouldUnsubscribe = onMessage(msg);
+
+                if (shouldUnsubscribe) {
+                    this.removeIncomingMesssagesListener(incomingMessagesListener);
+                }
+            },
+            shouldProcess: msg => msg.clientMsgId == msgId,
+            disconnectHandler: () => {
+                if (onError) {
+                    this.removeIncomingMesssagesListener(incomingMessagesListener);
+                    onError();
+                }
+            }
+        }
+
+        this.addIncomingMessagesListener(incomingMessagesListener);
+
+        if (this.isConnected()) {
+            try {
+                this.send(this.protocol.encode(payloadType, payload, msgId));
+            } catch (e) {
+                onError();
+            }
+        } else {
+            onError();
+        }
+    }
+
+    public sendCommandWithPayloadtype (payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId> {
+        var def = $.Deferred<IMessageWOMsgId>();
+
+        this.sendMultiresponseCommand(
+            payloadType,
+            payload,
+            result => {
+                if (this.isError(result.payloadType)) {
+                    def.reject(result);
+                } else {
+                    def.resolve(result);
+                }
+                return true;
+            },
+            () => {
+                def.reject();
+            }
+        );
+
+        return def.promise();
+    }
+
+    public sendGuaranteedCommandWithPayloadtype (payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId> {
+        if (this.isConnected()) {
+            return this.sendCommandWithPayloadtype(payloadType, payload);
+        } else {
+            var def = $.Deferred();
+
+            this.callbacksOnConnect.push(() => {
+                this.sendCommandWithPayloadtype(payloadType, payload)
+                    .then(def.resolve, def.reject);
+            });
+
+            return def;
+        }
     }
 
     public onConnect() {}

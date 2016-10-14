@@ -11,11 +11,6 @@
     },
     "files": [
         "typings/main.d.ts",
-        "lib/command.ts",
-        "lib/commands.ts",
-        "lib/connect.ts",
-        "lib/guaranteed_command.ts",
-        "lib/guaranteed_commands.ts",
-        "lib/state.ts"
+        "lib/connect.ts"
     ]
 }

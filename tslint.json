@@ -9,6 +9,7 @@
       "check-separator",
       "check-type",
       "check-typecast"
-    ]
+    ],
+    "no-trailing-whitespace": true
   }
 }
