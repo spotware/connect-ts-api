@@ -8,10 +8,25 @@ export interface IMessageWOMsgId {
     payloadType: number;
     payload?: any;
 }
+export interface IAdapter {
+    onOpen: (result?: any) => any;
+    onData: (data?: any) => any;
+    onError: (err?: any) => any;
+    onEnd: (err?: any) => any;
+    connect: () => any;
+    send: (message: any) => any;
+}
 export interface IConnectionParams {
     encodeDecode: any;
     protocol: any;
+    adapter: IAdapter;
     onPushEvent?: (message: IMessageWOMsgId) => void;
+}
+export interface IMultiResponseParams {
+    payloadType: number;
+    payload: Object;
+    onMessage: (data) => boolean;
+    onError?: () => void;
 }
 export declare class Connect extends EventEmitter {
     private adapter;
@@ -22,8 +37,8 @@ export declare class Connect extends EventEmitter {
     private handlePushEvent;
     private callbacksOnConnect;
     constructor(params: IConnectionParams);
-    getAdapter(): any;
-    setAdapter(adapter: any): void;
+    getAdapter(): IAdapter;
+    updateAdapter(adapter: any): void;
     private initialization();
     start(): JQueryPromise<void>;
     private onData(data);
@@ -42,7 +57,7 @@ export declare class Connect extends EventEmitter {
     private addIncomingMessagesListener(fnToAdd);
     private removeIncomingMesssagesListener(fnToRemove);
     sendCommandWithoutResponse(payloadType: number, payload: Object): void;
-    sendMultiresponseCommand(payloadType: number, payload: Object, onMessage: (data) => boolean, onError?: () => void): void;
+    sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void;
     sendCommandWithPayloadtype(payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId>;
     sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId>;
     onConnect(): void;

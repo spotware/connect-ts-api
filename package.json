@@ -1,6 +1,6 @@
 {
   "name": "connect-ts-api",
-  "version": "1.4.0",
+  "version": "1.6.0",
   "main": "lib/connect.js",
   "scripts": {
     "lint": "tslint lib/*.ts",

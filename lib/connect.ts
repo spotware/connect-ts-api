@@ -18,15 +18,32 @@ export interface IMessageWOMsgId {
     payload?: any;
 }
 
+export interface IAdapter {
+    onOpen: (result?: any) => any;
+    onData: (data?: any) => any;
+    onError: (err?: any) => any;
+    onEnd: (err?: any) => any;
+    connect: () => any;
+    send: (message: any) => any;
+}
+
 export interface IConnectionParams {
     encodeDecode: any
     protocol: any;
+    adapter: IAdapter;
     onPushEvent?: (message: IMessageWOMsgId) => void;
+}
+
+export interface IMultiResponseParams {
+    payloadType: number,
+    payload: Object,
+    onMessage: (data) => boolean,
+    onError?: () => void
 }
 
 export class Connect extends EventEmitter {
 
-    private adapter: any;
+    private adapter: IAdapter;
     private encodeDecode: any;
     private protocol: any;
     private _isConnected = false;
@@ -41,6 +58,7 @@ export class Connect extends EventEmitter {
         this.protocol = params.protocol;
 
         this.handlePushEvent = params.onPushEvent;
+        this.adapter = params.adapter;
 
         this.initialization();
     }
@@ -49,7 +67,7 @@ export class Connect extends EventEmitter {
         return this.adapter;
     }
 
-    public setAdapter(adapter: any) {
+    public updateAdapter(adapter: any) {
         this.adapter = adapter;
     }
 
@@ -60,9 +78,9 @@ export class Connect extends EventEmitter {
     }
 
     public start(): JQueryPromise<void> {
-        var def = $.Deferred<void>();
+        const def = $.Deferred<void>();
 
-        var adapter = this.adapter;
+        const adapter = this.adapter;
         adapter.onOpen = () => {
             this.onOpen();
             def.resolve();
@@ -108,9 +126,9 @@ export class Connect extends EventEmitter {
 
     private onMessage(data) {
         data = this.protocol.decode(data);
-        var msg = data.msg;
-        var payloadType = data.payloadType;
-        var clientMsgId = data.clientMsgId;
+        const msg = data.msg;
+        const payloadType = data.payloadType;
+        const clientMsgId = data.clientMsgId;
 
         if (clientMsgId) {
             this.processData(clientMsgId, payloadType, msg);
@@ -120,9 +138,9 @@ export class Connect extends EventEmitter {
     }
 
     private processData(clientMsgId, payloadType, msg) {
-        var isProcessed = false;
+        let isProcessed = false;
 
-        var message = {
+        const message = {
             clientMsgId: clientMsgId,
             payloadType: payloadType,
             payload: msg
@@ -190,10 +208,11 @@ export class Connect extends EventEmitter {
         this.send(this.protocol.encode(payloadType, payload, hat()));
     }
 
-    public sendMultiresponseCommand(payloadType: number, payload: Object, onMessage: (data) => boolean, onError?: () => void) {
-        var msgId = hat();
+    public sendMultiresponseCommand(multiResponseParams: IMultiResponseParams) {
+        let {payloadType, payload, onMessage, onError} = multiResponseParams;
+        const msgId = hat();
 
-        var incomingMessagesListener = {
+        const incomingMessagesListener = {
             handler: (msg) => {
                 var shouldUnsubscribe = onMessage(msg);
 
@@ -224,12 +243,12 @@ export class Connect extends EventEmitter {
     }
 
     public sendCommandWithPayloadtype (payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId> {
-        var def = $.Deferred<IMessageWOMsgId>();
+        const def = $.Deferred<IMessageWOMsgId>();
 
-        this.sendMultiresponseCommand(
+        this.sendMultiresponseCommand({
             payloadType,
             payload,
-            result => {
+            onMessage: result => {
                 if (this.isError(result.payloadType)) {
                     def.reject(result);
                 } else {
@@ -237,10 +256,10 @@ export class Connect extends EventEmitter {
                 }
                 return true;
             },
-            () => {
+            onError: () => {
                 def.reject();
             }
-        );
+        });
 
         return def.promise();
     }
@@ -249,7 +268,7 @@ export class Connect extends EventEmitter {
         if (this.isConnected()) {
             return this.sendCommandWithPayloadtype(payloadType, payload);
         } else {
-            var def = $.Deferred();
+            const def = $.Deferred();
 
             this.callbacksOnConnect.push(() => {
                 this.sendCommandWithPayloadtype(payloadType, payload)
