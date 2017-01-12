@@ -18,9 +18,19 @@ export interface IMessageWOMsgId {
     payload?: any;
 }
 
+export interface IAdapter {
+    onOpen: (result?: any) => any;
+    onData: (data?: any) => any;
+    onError: (err?: any) => any;
+    onEnd: (err?: any) => any;
+    connect: () => any;
+    send: (message: any) => any;
+}
+
 export interface IConnectionParams {
     encodeDecode: any
     protocol: any;
+    adapter: IAdapter;
     onPushEvent?: (message: IMessageWOMsgId) => void;
 }
 
@@ -33,7 +43,7 @@ export interface IMultiResponseParams {
 
 export class Connect extends EventEmitter {
 
-    private adapter: any;
+    private adapter: IAdapter;
     private encodeDecode: any;
     private protocol: any;
     private _isConnected = false;
@@ -48,6 +58,7 @@ export class Connect extends EventEmitter {
         this.protocol = params.protocol;
 
         this.handlePushEvent = params.onPushEvent;
+        this.adapter = params.adapter;
 
         this.initialization();
     }
@@ -56,7 +67,7 @@ export class Connect extends EventEmitter {
         return this.adapter;
     }
 
-    public setAdapter(adapter: any) {
+    public updateAdapter(adapter: any) {
         this.adapter = adapter;
     }
 
