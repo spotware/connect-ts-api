@@ -1,5 +1,4 @@
 /// <reference types="node" />
-/// <reference types="jquery" />
 import { EventEmitter } from 'events';
 export interface IMessage {
     clientMsgId: string;
@@ -42,11 +41,11 @@ export declare class Connect extends EventEmitter {
     getAdapter(): IAdapter;
     updateAdapter(adapter: any): void;
     private initialization();
-    start(): JQueryPromise<void>;
+    start(): PromiseLike<void>;
     private onData(data);
     private onOpen();
-    sendGuaranteedCommand(payloadType: number, params: any): JQueryPromise<any>;
-    sendCommand(payloadType: number, params: any): JQueryPromise<any>;
+    sendGuaranteedCommand(payloadType: number, params: any): PromiseLike<any>;
+    sendCommand(payloadType: number, params: any): PromiseLike<any>;
     private send(data);
     private onMessage(data);
     private processData(clientMsgId, payloadType, msg);
@@ -60,8 +59,8 @@ export declare class Connect extends EventEmitter {
     private removeIncomingMesssagesListener(fnToRemove);
     sendCommandWithoutResponse(payloadType: number, payload: Object): void;
     sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void;
-    sendCommandWithPayloadtype(payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId>;
-    sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId>;
+    sendCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId>;
+    sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId>;
     onConnect(): void;
     onEnd(e: any): void;
 }

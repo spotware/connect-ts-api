@@ -4,7 +4,7 @@
   "main": "lib/connect.js",
   "scripts": {
     "lint": "tslint lib/*.ts",
-    "build": "tsc lib/connect.ts",
+    "build": "tsc lib/connect.ts -d",
     "test": "tsc test/connect.test.ts && mocha"
   },
   "typescript": {
@@ -23,8 +23,7 @@
   "author": "Spotware Services <connect@spotware.com>",
   "private": true,
   "dependencies": {
-    "hat": "0.0.3",
-    "ts-loader": "0.8.2"
+    "hat": "0.0.3"
   },
   "devDependencies": {
     "@types/chai": "^3.4.34",

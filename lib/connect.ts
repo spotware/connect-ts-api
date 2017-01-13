@@ -77,23 +77,21 @@ export class Connect extends EventEmitter {
         );
     }
 
-    public start(): JQueryPromise<void> {
-        const def = $.Deferred<void>();
+    public start(): PromiseLike<void> {
+        return new Promise<void>((resolve, reject) => {
+            const adapter = this.adapter;
+            adapter.onOpen = () => {
+                this.onOpen();
+                resolve();
+            };
+            adapter.onData = this.onData.bind(this);
+            adapter.onError = adapter.onEnd = (e) => {
+                reject();
+                this._onEnd(e);
+            };
 
-        const adapter = this.adapter;
-        adapter.onOpen = () => {
-            this.onOpen();
-            def.resolve();
-        };
-        adapter.onData = this.onData.bind(this);
-        adapter.onError = adapter.onEnd = (e) => {
-            def.reject();
-            this._onEnd(e);
-        };
-
-        adapter.connect();
-
-        return def.promise();
+            adapter.connect();
+        });
     }
 
     private onData(data) {
@@ -242,44 +240,42 @@ export class Connect extends EventEmitter {
         }
     }
 
-    public sendCommandWithPayloadtype (payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId> {
-        const def = $.Deferred<IMessageWOMsgId>();
-
-        this.sendMultiresponseCommand({
-            payloadType,
-            payload,
-            onMessage: result => {
-                if (this.isError(result.payloadType)) {
-                    def.reject(result);
-                } else {
-                    def.resolve(result);
+    public sendCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId> {
+        return new Promise((resolve, reject) => {
+            this.sendMultiresponseCommand({
+                payloadType,
+                payload,
+                onMessage: result => {
+                    if (this.isError(result.payloadType)) {
+                        reject(result);
+                    } else {
+                        resolve(result);
+                    }
+                    return true;
+                },
+                onError: () => {
+                    reject();
                 }
-                return true;
-            },
-            onError: () => {
-                def.reject();
-            }
+            });
         });
-
-        return def.promise();
     }
 
-    public sendGuaranteedCommandWithPayloadtype (payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId> {
+    public sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId> {
         if (this.isConnected()) {
             return this.sendCommandWithPayloadtype(payloadType, payload);
         } else {
-            const def = $.Deferred();
-
-            this.callbacksOnConnect.push(() => {
-                this.sendCommandWithPayloadtype(payloadType, payload)
-                    .then(def.resolve, def.reject);
+            return new Promise((resolve, reject) => {
+                this.callbacksOnConnect.push(() => {
+                    this.sendCommandWithPayloadtype(payloadType, payload)
+                        .then(resolve, reject);
+                });
             });
-
-            return def;
         }
     }
 
-    public onConnect() {}
+    public onConnect() {
+    }
 
-    public onEnd(e: any) {}
+    public onEnd(e: any) {
+    }
 }
