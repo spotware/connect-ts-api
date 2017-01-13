@@ -1,3 +1,5 @@
+/// <reference types="node" />
+/// <reference types="jquery" />
 import { EventEmitter } from 'events';
 export interface IMessage {
     clientMsgId: string;
