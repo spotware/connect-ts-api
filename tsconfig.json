@@ -8,8 +8,5 @@
         "noEmitOnError": true,
         "preserveConstEnums": true,
         "declaration": true
-    },
-    "files": [
-        "lib/connect.ts"
-    ]
+    }
 }
