@@ -5,8 +5,7 @@
   "scripts": {
     "lint": "tslint lib/*.ts",
     "build": "tsc lib/connect.ts -d",
-    "test": "tsc test/connect.test.ts && jasmine",
-    "jasmine": "jasmine"
+    "test": "tsc test/connect.test.ts && node test_runner"
   },
   "typescript": {
     "main": "lib/connect.ts"
