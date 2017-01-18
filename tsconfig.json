@@ -8,9 +8,5 @@
         "noEmitOnError": true,
         "preserveConstEnums": true,
         "declaration": true
-    },
-    "files": [
-        "typings/main.d.ts",
-        "lib/connect.ts"
-    ]
+    }
 }

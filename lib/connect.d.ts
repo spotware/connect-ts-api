@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { EventEmitter } from 'events';
 export interface IMessage {
     clientMsgId: string;
@@ -17,8 +18,8 @@ export interface IAdapter {
     send: (message: any) => any;
 }
 export interface IConnectionParams {
-    encodeDecode: any;
-    protocol: any;
+    encodeDecode: IEncoderDecoder;
+    protocol: IProtocol;
     adapter: IAdapter;
     onPushEvent?: (message: IMessageWOMsgId) => void;
 }
@@ -27,6 +28,15 @@ export interface IMultiResponseParams {
     payload: Object;
     onMessage: (data) => boolean;
     onError?: () => void;
+}
+export interface IEncoderDecoder {
+    encode: (params?: any) => any;
+    decode: (params?: any) => any;
+    registerDecodeHandler: (handler: () => any) => any;
+}
+export interface IProtocol {
+    encode: (payloadType: number, payload: any, hatRes: any) => any;
+    decode: (params?: any) => any;
 }
 export declare class Connect extends EventEmitter {
     private adapter;
@@ -40,11 +50,11 @@ export declare class Connect extends EventEmitter {
     getAdapter(): IAdapter;
     updateAdapter(adapter: any): void;
     private initialization();
-    start(): JQueryPromise<void>;
+    start(): PromiseLike<void>;
     private onData(data);
     private onOpen();
-    sendGuaranteedCommand(payloadType: number, params: any): JQueryPromise<any>;
-    sendCommand(payloadType: number, params: any): JQueryPromise<any>;
+    sendGuaranteedCommand(payloadType: number, params: any): PromiseLike<any>;
+    sendCommand(payloadType: number, params: any): PromiseLike<any>;
     private send(data);
     private onMessage(data);
     private processData(clientMsgId, payloadType, msg);
@@ -58,8 +68,8 @@ export declare class Connect extends EventEmitter {
     private removeIncomingMesssagesListener(fnToRemove);
     sendCommandWithoutResponse(payloadType: number, payload: Object): void;
     sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void;
-    sendCommandWithPayloadtype(payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId>;
-    sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): JQueryPromise<IMessageWOMsgId>;
+    sendCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId>;
+    sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId>;
     onConnect(): void;
     onEnd(e: any): void;
 }

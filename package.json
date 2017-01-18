@@ -1,10 +1,12 @@
 {
   "name": "connect-ts-api",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "main": "lib/connect.js",
   "scripts": {
     "lint": "tslint lib/*.ts",
-    "build": "tsc"
+    "build": "tsc lib/connect.ts -d",
+    "test": "tsc test/connect.test.ts && jasmine",
+    "jasmine": "jasmine"
   },
   "typescript": {
     "main": "lib/connect.ts"
@@ -22,11 +24,15 @@
   "author": "Spotware Services <connect@spotware.com>",
   "private": true,
   "dependencies": {
-    "hat": "0.0.3",
-    "ts-loader": "0.8.2"
+    "hat": "0.0.3"
   },
   "devDependencies": {
+    "@types/es6-promise": "0.0.32",
+    "@types/jasmine": "^2.5.40",
+    "@types/jquery": "2.0.34",
+    "@types/node": "^6.0.58",
+    "jasmine": "^2.5.3",
     "tslint": "3.15.1",
-    "typescript": "1.8.10"
+    "typescript": "2.1.4"
   }
 }
