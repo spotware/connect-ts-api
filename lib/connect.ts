@@ -28,8 +28,8 @@ export interface IAdapter {
 }
 
 export interface IConnectionParams {
-    encodeDecode: any
-    protocol: any;
+    encodeDecode: IEncoderDecoder
+    protocol: IProtocol;
     adapter: IAdapter;
     onPushEvent?: (message: IMessageWOMsgId) => void;
 }
@@ -41,11 +41,22 @@ export interface IMultiResponseParams {
     onError?: () => void
 }
 
+export interface IEncoderDecoder {
+    encode: (params?: any) => any;
+    decode: (params?: any) => any;
+    registerDecodeHandler: (handler: () => any) => any;
+}
+
+export interface IProtocol {
+    encode: (payloadType: number, payload: any, hatRes: any) => any;
+    decode: (params?: any) => any;
+}
+
 export class Connect extends EventEmitter {
 
     private adapter: IAdapter;
-    private encodeDecode: any;
-    private protocol: any;
+    private encodeDecode: IEncoderDecoder;
+    private protocol: IProtocol;
     private _isConnected = false;
     private incomingMessagesListeners: IIncommingMessagesListener[] = [];
     private handlePushEvent: (message: IMessageWOMsgId) => void;

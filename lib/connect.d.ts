@@ -29,6 +29,11 @@ export interface IMultiResponseParams {
     onMessage: (data) => boolean;
     onError?: () => void;
 }
+export interface IEncoderDecoder {
+    encode: (params?: any) => any;
+    decode: (params?: any) => any;
+    registerDecodeHandler: (handler: () => any) => any;
+}
 export declare class Connect extends EventEmitter {
     private adapter;
     private encodeDecode;
