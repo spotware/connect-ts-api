@@ -18,8 +18,8 @@ export interface IAdapter {
     send: (message: any) => any;
 }
 export interface IConnectionParams {
-    encodeDecode: any;
-    protocol: any;
+    encodeDecode: IEncoderDecoder;
+    protocol: IProtocol;
     adapter: IAdapter;
     onPushEvent?: (message: IMessageWOMsgId) => void;
 }
@@ -33,6 +33,10 @@ export interface IEncoderDecoder {
     encode: (params?: any) => any;
     decode: (params?: any) => any;
     registerDecodeHandler: (handler: () => any) => any;
+}
+export interface IProtocol {
+    encode: (payloadType: number, payload: any, hatRes: any) => any;
+    decode: (params?: any) => any;
 }
 export declare class Connect extends EventEmitter {
     private adapter;
