@@ -1,4 +1,4 @@
-var hat = require('hat');
+const hat = require('hat');
 import {EventEmitter} from 'events';
 
 interface IIncommingMessagesListener {
@@ -23,13 +23,13 @@ export interface IAdapter {
     onData: (data?: any) => any;
     onError: (err?: any) => any;
     onEnd: (err?: any) => any;
+    destroy?: () => void;
     connect: () => any;
     send: (message: any) => any;
 }
 
 export interface IConnectionParams {
     encodeDecode: IEncoderDecoder
-    protocol: IProtocol;
     adapter: IAdapter;
     onPushEvent?: (message: IMessageWOMsgId) => void;
 }
@@ -38,26 +38,25 @@ export interface IMultiResponseParams {
     payloadType: number,
     payload: Object,
     onMessage: (data) => boolean,
-    onError?: () => void
+    onError?: (err?: any) => void
 }
 
 export interface IEncoderDecoder {
-    encode: (params?: any) => any;
+    encode: (data: IDataToSend) => any;
     decode: (params?: any) => any;
-    registerDecodeHandler: (handler: () => any) => any;
 }
 
-export interface IProtocol {
-    encode: (payloadType: number, payload: any, hatRes: any) => any;
-    decode: (params?: any) => any;
+export interface IDataToSend {
+    payloadType: number,
+    payload: any,
+    msgId: number
 }
 
 export class Connect extends EventEmitter {
 
     private adapter: IAdapter;
     private encodeDecode: IEncoderDecoder;
-    private protocol: IProtocol;
-    private _isConnected = false;
+    private connected = false;
     private incomingMessagesListeners: IIncommingMessagesListener[] = [];
     private handlePushEvent: (message: IMessageWOMsgId) => void;
     private callbacksOnConnect: (() => void)[] = [];
@@ -66,26 +65,17 @@ export class Connect extends EventEmitter {
         super();
 
         this.encodeDecode = params.encodeDecode;
-        this.protocol = params.protocol;
 
         this.handlePushEvent = params.onPushEvent;
         this.adapter = params.adapter;
 
-        this.initialization();
-    }
-
-    public getAdapter() {
-        return this.adapter;
     }
 
     public updateAdapter(adapter: any) {
+        if (this.adapter) {
+            this.destroyAdapter();
+        }
         this.adapter = adapter;
-    }
-
-    private initialization() {
-        this.encodeDecode.registerDecodeHandler(
-            this.onMessage.bind(this)
-        );
     }
 
     public start(): PromiseLike<void> {
@@ -105,12 +95,8 @@ export class Connect extends EventEmitter {
         });
     }
 
-    private onData(data) {
-        this.encodeDecode.decode(data);
-    }
-
     private onOpen() {
-        this._isConnected = true;
+        this.connected = true;
 
         this.onConnect();
 
@@ -127,14 +113,14 @@ export class Connect extends EventEmitter {
         return this.sendCommandWithPayloadtype(payloadType, params).then(msg => msg.payload);
     }
 
-    private send(data) {
-        this.adapter.send(
-            this.encodeDecode.encode(data)
-        );
+    private send(data: IDataToSend) {
+        console.assert(this.adapter, 'Fatal: Adapter must be defined, use updateAdapter');
+        const encodedData = this.encodeDecode.encode(data);
+        this.adapter.send(encodedData);
     }
 
-    private onMessage(data) {
-        data = this.protocol.decode(data);
+    private onData(data) {
+        data = this.encodeDecode.decode(data);
         const msg = data.msg;
         const payloadType = data.payloadType;
         const clientMsgId = data.clientMsgId;
@@ -172,14 +158,6 @@ export class Connect extends EventEmitter {
         return false;
     }
 
-    protected processMessage(command, msg, payloadType) {
-        if (this.isError(payloadType)) {
-            command.fail(msg);
-        } else {
-            command.done(msg);
-        }
-    }
-
     protected processPushEvent(msg, payloadType) {
         if (this.handlePushEvent) {
             this.handlePushEvent({payload: msg, payloadType});
@@ -189,7 +167,7 @@ export class Connect extends EventEmitter {
     }
 
     private _onEnd(e) {
-        this._isConnected = false;
+        this.connected = false;
         this.incomingMessagesListeners.forEach(listener => {
             listener.disconnectHandler();
         });
@@ -198,11 +176,11 @@ export class Connect extends EventEmitter {
     }
 
     public isDisconnected() {
-        return !this._isConnected;
+        return !this.connected;
     }
 
     public isConnected() {
-        return this._isConnected;
+        return this.connected;
     }
 
     private addIncomingMessagesListener (fnToAdd: IIncommingMessagesListener) {
@@ -214,7 +192,7 @@ export class Connect extends EventEmitter {
     }
 
     public sendCommandWithoutResponse(payloadType: number, payload: Object) {
-        this.send(this.protocol.encode(payloadType, payload, hat()));
+        this.send({payloadType, payload, msgId: hat()});
     }
 
     public sendMultiresponseCommand(multiResponseParams: IMultiResponseParams) {
@@ -223,7 +201,7 @@ export class Connect extends EventEmitter {
 
         const incomingMessagesListener = {
             handler: (msg) => {
-                var shouldUnsubscribe = onMessage(msg);
+                const shouldUnsubscribe = onMessage(msg);
 
                 if (shouldUnsubscribe) {
                     this.removeIncomingMesssagesListener(incomingMessagesListener);
@@ -242,12 +220,12 @@ export class Connect extends EventEmitter {
 
         if (this.isConnected()) {
             try {
-                this.send(this.protocol.encode(payloadType, payload, msgId));
-            } catch (e) {
-                onError();
+                this.send({payloadType, payload, msgId});
+            } catch (err) {
+                onError(err);
             }
         } else {
-            onError();
+            onError('Adapter not connected');
         }
     }
 
@@ -264,8 +242,8 @@ export class Connect extends EventEmitter {
                     }
                     return true;
                 },
-                onError: () => {
-                    reject();
+                onError: (err) => {
+                    reject(err);
                 }
             });
         });
@@ -288,5 +266,20 @@ export class Connect extends EventEmitter {
     }
 
     public onEnd(e: any) {
+    }
+
+    public destroyAdapter(): void {
+        this.adapter.onOpen = null;
+        this.adapter.onData = null;
+        this.adapter.onError = function () {};
+        if (this.adapter.onEnd) {
+            this.adapter.onEnd();
+        }
+        this.adapter.onEnd = function () {};
+        if (this.adapter.destroy) {
+            this.adapter.destroy()
+        }
+        this.adapter.destroy = function () {};
+        this.adapter = null;
     }
 }

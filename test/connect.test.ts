@@ -1,25 +1,14 @@
 import {IAdapter} from "../lib/connect";
 import {Connect} from "../lib/connect";
 import {IEncoderDecoder} from "../lib/connect";
-import {IProtocol} from "../lib/connect";
+import {IDataToSend} from "../lib/connect";
 
 describe('Connect ts API test', function () {
     let adapter: IAdapter;
 
     const encodeDecode: IEncoderDecoder = {
         encode: (message) => {return message},
-        decode: (message) => {return message},
-        registerDecodeHandler: (message) => {return message}
-    };
-
-    const protocol: IProtocol = {
-        encode: (payloadType: number, payload: any, hatRes: any) => {
-            console.log('protocol spy called.', payloadType);
-            return {payloadType, payload, hatRes}
-        },
-        decode: (params?: any) => {
-            return params
-        }
+        decode: (message) => {return message}
     };
 
     let connection: Connect;
@@ -34,7 +23,6 @@ describe('Connect ts API test', function () {
         };
         let connectionParams = {
             encodeDecode,
-            protocol,
             adapter,
         };
         connection = new Connect(connectionParams);
@@ -62,19 +50,48 @@ describe('Connect ts API test', function () {
         adapter.connect = () => {adapter.onOpen()};
         const testPayloadType = 12;
         const testPayload = {info:'testInfo'};
-        let testSalt;
-        spyOn(protocol, 'encode').and.callFake((payloadType: number, payload: Object, salt: string) => {
-            testSalt = salt;
+        let receivedId;
+        spyOn(encodeDecode, 'encode').and.callFake(({payloadType, payload, msgId}: IDataToSend) => {
+            receivedId = msgId;
             expect(payloadType).toBe(testPayloadType);
             expect(payload).toEqual(testPayload);
-            return {payloadType, payload, salt}
+            return {payloadTypeEncoded: payloadType, payloadEncoded: payload, msgId}
         });
 
         spyOn(adapter, 'send');
         connection.start().then(() => {
             connection.sendCommand(testPayloadType, testPayload);
-            expect(adapter.send).toHaveBeenCalledWith({payloadType: testPayloadType, payload: testPayload, salt: testSalt});
+            expect(adapter.send).toHaveBeenCalledWith({payloadTypeEncoded: testPayloadType, payloadEncoded: testPayload, msgId: receivedId});
             done();
+        });
+    });
+
+    it('sends guaranteedCommand once the adapter reconnects', function(done) {
+        adapter.connect = () => {
+            adapter.onOpen()
+        };
+        const testPayloadType = 12;
+        const testPayload = {info:'testInfo'};
+        let receivedId;
+        spyOn(encodeDecode, 'encode').and.callFake(({payloadType, payload, msgId}: IDataToSend) => {
+            receivedId = msgId;
+            expect(payloadType).toBe(testPayloadType);
+            expect(payload).toEqual(testPayload);
+            return {payloadTypeEncoded: payloadType, payloadEncoded: payload, msgId}
+        });
+
+        spyOn(adapter, 'send');
+        connection.start().then(() => {
+            adapter.onEnd();
+            connection.sendGuaranteedCommand(testPayloadType, testPayload);
+            connection.start().then(() => {
+                expect(adapter.send).toHaveBeenCalledWith({
+                    payloadTypeEncoded: testPayloadType,
+                    payloadEncoded: testPayload,
+                    msgId: receivedId
+                });
+                done();
+            })
         });
     });
 });
