@@ -269,6 +269,9 @@ export class Connect extends EventEmitter {
     }
 
     public destroyAdapter(): void {
+        if (!this.adapter) {
+            return
+        }
         this.adapter.onOpen = null;
         this.adapter.onData = null;
         this.adapter.onError = function () {};
