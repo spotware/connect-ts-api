@@ -53,7 +53,7 @@ export declare class Connect extends EventEmitter {
     private onData(data);
     private processData(clientMsgId, payloadType, msg);
     isError(payloadType: any): boolean;
-    processPushEvent(msg: any, payloadType: any): boolean;
+    processPushEvent(msg: any, payloadType: any): void;
     private _onEnd(e);
     isDisconnected(): boolean;
     isConnected(): boolean;
@@ -63,7 +63,7 @@ export declare class Connect extends EventEmitter {
     sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void;
     sendCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId>;
     sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId>;
-    onConnect(): boolean;
-    onEnd(e: any): boolean;
+    onConnect(): void;
+    onEnd(e: any): void;
     destroyAdapter(): void;
 }

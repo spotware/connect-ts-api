@@ -154,7 +154,6 @@ export class Connect extends EventEmitter {
 
     public processPushEvent(msg, payloadType) {
         //Overwrite this method by your business logic
-        return false;
     }
 
     private _onEnd(e) {
@@ -255,12 +254,10 @@ export class Connect extends EventEmitter {
 
     public onConnect() {
         //Overwrite this method by your business logic
-        return false
     }
 
     public onEnd(e: any) {
         //Overwrite this method by your business logic
-        return false
     }
 
     public destroyAdapter(): void {
