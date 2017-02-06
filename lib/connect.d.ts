@@ -21,7 +21,6 @@ export interface IAdapter {
 export interface IConnectionParams {
     encodeDecode: IEncoderDecoder;
     adapter: IAdapter;
-    onPushEvent?: (message: IMessageWOMsgId) => void;
 }
 export interface IMultiResponseParams {
     payloadType: number;
@@ -43,7 +42,6 @@ export declare class Connect extends EventEmitter {
     private encodeDecode;
     private connected;
     private incomingMessagesListeners;
-    private handlePushEvent;
     private callbacksOnConnect;
     constructor(params: IConnectionParams);
     updateAdapter(adapter: any): void;
@@ -54,8 +52,8 @@ export declare class Connect extends EventEmitter {
     private send(data);
     private onData(data);
     private processData(clientMsgId, payloadType, msg);
-    protected isError(payloadType: any): boolean;
-    protected processPushEvent(msg: any, payloadType: any): void;
+    isError(payloadType: any): boolean;
+    processPushEvent(msg: any, payloadType: any): boolean;
     private _onEnd(e);
     isDisconnected(): boolean;
     isConnected(): boolean;
@@ -65,7 +63,7 @@ export declare class Connect extends EventEmitter {
     sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void;
     sendCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId>;
     sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId>;
-    onConnect(): void;
-    onEnd(e: any): void;
+    onConnect(): boolean;
+    onEnd(e: any): boolean;
     destroyAdapter(): void;
 }

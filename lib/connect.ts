@@ -31,7 +31,6 @@ export interface IAdapter {
 export interface IConnectionParams {
     encodeDecode: IEncoderDecoder
     adapter: IAdapter;
-    onPushEvent?: (message: IMessageWOMsgId) => void;
 }
 
 export interface IMultiResponseParams {
@@ -58,17 +57,12 @@ export class Connect extends EventEmitter {
     private encodeDecode: IEncoderDecoder;
     private connected = false;
     private incomingMessagesListeners: IIncommingMessagesListener[] = [];
-    private handlePushEvent: (message: IMessageWOMsgId) => void;
     private callbacksOnConnect: (() => void)[] = [];
 
     constructor(params: IConnectionParams) {
         super();
-
         this.encodeDecode = params.encodeDecode;
-
-        this.handlePushEvent = params.onPushEvent;
         this.adapter = params.adapter;
-
     }
 
     public updateAdapter(adapter: any) {
@@ -153,17 +147,14 @@ export class Connect extends EventEmitter {
         }
     }
 
-    protected isError(payloadType): boolean {
+    public isError(payloadType): boolean {
         //Overwrite this method by your buisness logic
         return false;
     }
 
-    protected processPushEvent(msg, payloadType) {
-        if (this.handlePushEvent) {
-            this.handlePushEvent({payload: msg, payloadType});
-        }
-
-        this.emit(payloadType, msg);
+    public processPushEvent(msg, payloadType) {
+        //Overwrite this method by your business logic
+        return false;
     }
 
     private _onEnd(e) {
@@ -263,9 +254,13 @@ export class Connect extends EventEmitter {
     }
 
     public onConnect() {
+        //Overwrite this method by your business logic
+        return false
     }
 
     public onEnd(e: any) {
+        //Overwrite this method by your business logic
+        return false
     }
 
     public destroyAdapter(): void {
