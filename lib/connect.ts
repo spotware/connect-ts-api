@@ -58,6 +58,7 @@ export class Connect extends EventEmitter {
     private connected = false;
     private incomingMessagesListeners: IIncommingMessagesListener[] = [];
     private callbacksOnConnect: (() => void)[] = [];
+    private destroyingAdapter = false;
 
     constructor(params: IConnectionParams) {
         super();
@@ -261,9 +262,10 @@ export class Connect extends EventEmitter {
     }
 
     public destroyAdapter(): void {
-        if (!this.adapter) {
+        if (!this.adapter || this.destroyingAdapter) {
             return
         }
+        this.destroyingAdapter = true;
         this.adapter.onOpen = null;
         this.adapter.onData = null;
         this.adapter.onError = function () {};
@@ -276,5 +278,6 @@ export class Connect extends EventEmitter {
         }
         this.adapter.destroy = function () {};
         this.adapter = null;
+        this.destroyingAdapter = false;
     }
 }

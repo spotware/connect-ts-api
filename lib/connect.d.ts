@@ -43,6 +43,7 @@ export declare class Connect extends EventEmitter {
     private connected;
     private incomingMessagesListeners;
     private callbacksOnConnect;
+    private destroyingAdapter;
     constructor(params: IConnectionParams);
     updateAdapter(adapter: any): void;
     start(): PromiseLike<void>;
