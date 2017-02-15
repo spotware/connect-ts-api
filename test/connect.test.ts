@@ -13,7 +13,7 @@ describe('Connect ts API test', function () {
 
     let connection: Connect;
     beforeEach(function () {
-        adapter ={
+        adapter = {
             onOpen: () => {},
             onData: (data?: any): any => {},
             onError: (err?: any): any => {},
@@ -49,7 +49,7 @@ describe('Connect ts API test', function () {
     it('sendCommand should encode message and use adapters send method', function(done) {
         adapter.connect = () => {adapter.onOpen()};
         const testPayloadType = 12;
-        const testPayload = {info:'testInfo'};
+        const testPayload = {info: 'testInfo'};
         let receivedId;
         spyOn(encodeDecode, 'encode').and.callFake(({payloadType, payload, msgId}: IDataToSend) => {
             receivedId = msgId;
@@ -71,7 +71,7 @@ describe('Connect ts API test', function () {
             adapter.onOpen()
         };
         const testPayloadType = 12;
-        const testPayload = {info:'testInfo'};
+        const testPayload = {info: 'testInfo'};
         let receivedId;
         spyOn(encodeDecode, 'encode').and.callFake(({payloadType, payload, msgId}: IDataToSend) => {
             receivedId = msgId;

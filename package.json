@@ -1,9 +1,9 @@
 {
   "name": "connect-ts-api",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "main": "lib/connect.js",
   "scripts": {
-    "lint": "tslint lib/*.ts",
+    "lint": "tslint **/*.ts",
     "build": "tsc lib/connect.ts -d",
     "test": "tsc test/connect.test.ts && node test_runner"
   },
