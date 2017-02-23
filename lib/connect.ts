@@ -2,9 +2,10 @@ const hat = require('hat');
 import {EventEmitter} from 'events';
 
 interface IIncommingMessagesListener {
+    message: IMessage;
     handler: (payload: IMessage) => void;
     shouldProcess: (payload: IMessage) => boolean;
-    disconnectHandler: () => void;
+    disconnectHandler: (err?: any) => void;
 }
 
 export interface IMessage {
@@ -160,7 +161,8 @@ export class Connect extends EventEmitter {
     private _onEnd(e) {
         this.connected = false;
         this.incomingMessagesListeners.forEach(listener => {
-            listener.disconnectHandler();
+            const error = e || `Message {payladType: ${listener.message.payloadType}} was not sent. Adapter ended`;
+            listener.disconnectHandler(error);
         });
         this.incomingMessagesListeners = [];
         this.onEnd(e);
@@ -174,7 +176,7 @@ export class Connect extends EventEmitter {
         return this.connected;
     }
 
-    private addIncomingMessagesListener (fnToAdd: IIncommingMessagesListener) {
+    private addIncomingMessagesListener(fnToAdd: IIncommingMessagesListener) {
         this.incomingMessagesListeners.push(fnToAdd);
     }
 
@@ -187,29 +189,33 @@ export class Connect extends EventEmitter {
     }
 
     public sendMultiresponseCommand(multiResponseParams: IMultiResponseParams) {
-        let {payloadType, payload, onMessage, onError} = multiResponseParams;
-        const msgId = hat();
-
-        const incomingMessagesListener = {
-            handler: (msg) => {
-                const shouldUnsubscribe = onMessage(msg);
-
-                if (shouldUnsubscribe) {
-                    this.removeIncomingMesssagesListener(incomingMessagesListener);
-                }
-            },
-            shouldProcess: msg => msg.clientMsgId == msgId,
-            disconnectHandler: () => {
-                if (onError) {
-                    this.removeIncomingMesssagesListener(incomingMessagesListener);
-                    onError();
-                }
-            }
-        }
-
-        this.addIncomingMessagesListener(incomingMessagesListener);
-
+        const {payloadType, payload, onMessage, onError} = multiResponseParams;
         if (this.isConnected()) {
+            const msgId = hat();
+            const message = {
+                clientMsgId: msgId,
+                payloadType
+            };
+            const incomingMessagesListener = {
+                message,
+                handler: (msg) => {
+                    const shouldUnsubscribe = onMessage(msg);
+
+                    if (shouldUnsubscribe) {
+                        this.removeIncomingMesssagesListener(incomingMessagesListener);
+                    }
+                },
+                shouldProcess: msg => msg.clientMsgId == msgId,
+                disconnectHandler: (err) => {
+                    if (onError) {
+                        this.removeIncomingMesssagesListener(incomingMessagesListener);
+                        onError(err);
+                    }
+                }
+            };
+
+            this.addIncomingMessagesListener(incomingMessagesListener);
+
             try {
                 this.send({payloadType, payload, msgId});
             } catch (err) {
@@ -268,15 +274,18 @@ export class Connect extends EventEmitter {
         this.destroyingAdapter = true;
         this.adapter.onOpen = null;
         this.adapter.onData = null;
-        this.adapter.onError = function () {};
+        this.adapter.onError = function () {
+        };
         if (this.adapter.onEnd) {
             this.adapter.onEnd();
         }
-        this.adapter.onEnd = function () {};
+        this.adapter.onEnd = function () {
+        };
         if (this.adapter.destroy) {
             this.adapter.destroy()
         }
-        this.adapter.destroy = function () {};
+        this.adapter.destroy = function () {
+        };
         this.adapter = null;
         this.destroyingAdapter = false;
     }
