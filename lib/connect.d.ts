@@ -1,4 +1,5 @@
 /// <reference types="node" />
+/// <reference types="es6-promise" />
 import { EventEmitter } from 'events';
 export interface IMessage {
     clientMsgId: string;
@@ -46,10 +47,10 @@ export declare class Connect extends EventEmitter {
     private destroyingAdapter;
     constructor(params: IConnectionParams);
     updateAdapter(adapter: any): void;
-    start(): PromiseLike<void>;
+    start(): Promise<void>;
     private onOpen();
-    sendGuaranteedCommand(payloadType: number, params: any): PromiseLike<any>;
-    sendCommand(payloadType: number, params: any): PromiseLike<any>;
+    sendGuaranteedCommand(payloadType: number, params: any): Promise<any>;
+    sendCommand(payloadType: number, params: any): Promise<any>;
     private send(data);
     private onData(data);
     private processData(clientMsgId, payloadType, msg);
@@ -62,8 +63,8 @@ export declare class Connect extends EventEmitter {
     private removeIncomingMesssagesListener(fnToRemove);
     sendCommandWithoutResponse(payloadType: number, payload: Object): void;
     sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void;
-    sendCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId>;
-    sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId>;
+    sendCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId>;
+    sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId>;
     onConnect(): void;
     onEnd(e: any): void;
     destroyAdapter(): void;

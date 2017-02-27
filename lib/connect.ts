@@ -74,7 +74,7 @@ export class Connect extends EventEmitter {
         this.adapter = adapter;
     }
 
-    public start(): PromiseLike<void> {
+    public start(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             const adapter = this.adapter;
             adapter.onOpen = () => {
@@ -226,7 +226,7 @@ export class Connect extends EventEmitter {
         }
     }
 
-    public sendCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId> {
+    public sendCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId> {
         return new Promise((resolve, reject) => {
             this.sendMultiresponseCommand({
                 payloadType,
@@ -246,7 +246,7 @@ export class Connect extends EventEmitter {
         });
     }
 
-    public sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): PromiseLike<IMessageWOMsgId> {
+    public sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId> {
         if (this.isConnected()) {
             return this.sendCommandWithPayloadtype(payloadType, payload);
         } else {
