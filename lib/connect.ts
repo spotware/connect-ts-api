@@ -246,13 +246,33 @@ export class Connect extends EventEmitter {
         });
     }
 
+    public sendGuaranteedMultiresponseCommand(payloadType: number, payload: Object): Promise<IMessageWOMsgId> {
+        return new Promise((resolve, reject) => {
+            this.sendMultiresponseCommand({
+                payloadType,
+                payload,
+                onMessage: result => {
+                    if (this.isError(result.payloadType)) {
+                        reject(result);
+                    } else {
+                        resolve(result);
+                    }
+                    return true;
+                },
+                onError: (err) => {
+                    this.sendGuaranteedMultiresponseCommand(payloadType, payload).then(resolve, reject);
+                }
+            });
+        });
+    }
+
     public sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId> {
         if (this.isConnected()) {
-            return this.sendCommandWithPayloadtype(payloadType, payload);
+            return this.sendGuaranteedMultiresponseCommand(payloadType, payload);
         } else {
             return new Promise((resolve, reject) => {
                 this.callbacksOnConnect.push(() => {
-                    this.sendCommandWithPayloadtype(payloadType, payload)
+                    this.sendGuaranteedMultiresponseCommand(payloadType, payload)
                         .then(resolve, reject);
                 });
             });

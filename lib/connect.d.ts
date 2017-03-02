@@ -64,6 +64,7 @@ export declare class Connect extends EventEmitter {
     sendCommandWithoutResponse(payloadType: number, payload: Object): void;
     sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void;
     sendCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId>;
+    sendGuaranteedMultiresponseCommand(payloadType: number, payload: Object): Promise<IMessageWOMsgId>;
     sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId>;
     onConnect(): void;
     onEnd(e: any): void;
