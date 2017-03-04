@@ -5,7 +5,7 @@ interface IIncommingMessagesListener {
     message: IMessage;
     handler: (payload: IMessage) => void;
     shouldProcess: (payload: IMessage) => boolean;
-    disconnectHandler: (err?: any) => void;
+    disconnectHandler: (err: ISendRequestError) => void;
 }
 
 export interface IMessage {
@@ -22,8 +22,8 @@ export interface IMessageWOMsgId {
 export interface IAdapter {
     onOpen: (result?: any) => any;
     onData: (data?: any) => any;
-    onError: (err?: any) => any;
-    onEnd: (err?: any) => any;
+    onError: (err: string) => any;
+    onEnd: (err: string) => any;
     destroy?: () => void;
     connect: () => any;
     send: (message: any) => any;
@@ -35,10 +35,21 @@ export interface IConnectionParams {
 }
 
 export interface IMultiResponseParams {
-    payloadType: number,
-    payload: Object,
-    onMessage: (data) => boolean,
-    onError?: (err?: any) => void
+    payloadType: number;
+    payload: Object;
+    onMessage: (data) => boolean;
+    onError?: (err: ISendRequestError) => void;
+}
+
+export interface ISendRequestError {
+    errorCode: SendRequestError,
+    description: string
+}
+
+export enum SendRequestError {
+    ADAPTER_DISCONNECTED = 1,
+    ADAPTER_DROP = 2,
+    ADAPTER_DISRUPTED = 3
 }
 
 export interface IEncoderDecoder {
@@ -49,20 +60,20 @@ export interface IEncoderDecoder {
 export interface IDataToSend {
     payloadType: number,
     payload: any,
-    msgId: number
+    clientMsgId: string
 }
 
-export class Connect extends EventEmitter {
+export class Connect {
 
     private adapter: IAdapter;
     private encodeDecode: IEncoderDecoder;
     private connected = false;
     private incomingMessagesListeners: IIncommingMessagesListener[] = [];
+    private guaranteedIncomingMessagesListeners: IIncommingMessagesListener[] = [];
     private callbacksOnConnect: (() => void)[] = [];
     private destroyingAdapter = false;
 
     constructor(params: IConnectionParams) {
-        super();
         this.encodeDecode = params.encodeDecode;
         this.adapter = params.adapter;
     }
@@ -94,17 +105,30 @@ export class Connect extends EventEmitter {
     private onOpen() {
         this.connected = true;
 
+        this.callGuaranteedCommands();
+
         this.onConnect();
-
-        this.callbacksOnConnect.forEach(fn => fn());
-
-        this.callbacksOnConnect = [];
     }
 
+    private callGuaranteedCommands(): void {
+        this.guaranteedIncomingMessagesListeners.forEach(listener => {
+            const {clientMsgId, payloadType, payload} = listener.message;
+            this.send({payloadType, payload, clientMsgId: clientMsgId});
+        });
+    }
+
+    /**
+     * @deprecated Too consumer-specific. can be confusing. Just use sendGuaranteedCommandWithPayloadtype and handle the
+     * response on consumer.
+     */
     public sendGuaranteedCommand(payloadType: number, params) {
         return this.sendGuaranteedCommandWithPayloadtype(payloadType, params).then(msg => msg.payload);
     }
 
+    /**
+     * @deprecated Too consumer-specific. can be confusing. Just use sendCommandWithPayloadtype and handle the
+     * response on consumer.
+     */
     public sendCommand(payloadType: number, params) {
         return this.sendCommandWithPayloadtype(payloadType, params).then(msg => msg.payload);
     }
@@ -144,6 +168,13 @@ export class Connect extends EventEmitter {
             }
         });
 
+        this.guaranteedIncomingMessagesListeners.forEach(guaranteedListener => {
+            if (guaranteedListener.shouldProcess(message)) {
+                isProcessed = true;
+                guaranteedListener.handler(message);
+            }
+        });
+
         if (!isProcessed) {
             this.processPushEvent(msg, payloadType);
         }
@@ -158,10 +189,13 @@ export class Connect extends EventEmitter {
         //Overwrite this method by your business logic
     }
 
-    private _onEnd(e) {
+    private _onEnd(e: string) {
         this.connected = false;
         this.incomingMessagesListeners.forEach(listener => {
-            const error = e || `Message {payladType: ${listener.message.payloadType}} was not sent. Adapter ended`;
+            const error = {
+                errorCode: SendRequestError.ADAPTER_DROP,
+                description: `Message with payladType:${listener.message.payloadType} was not sent. Adapter ended with reason: ${e}`
+            };
             listener.disconnectHandler(error);
         });
         this.incomingMessagesListeners = [];
@@ -180,23 +214,28 @@ export class Connect extends EventEmitter {
         this.incomingMessagesListeners.push(fnToAdd);
     }
 
+    private addGuaranteedIncomingMessagesListener(fnToAdd: IIncommingMessagesListener) {
+        this.guaranteedIncomingMessagesListeners.push(fnToAdd);
+    }
+
     private removeIncomingMesssagesListener(fnToRemove: IIncommingMessagesListener) {
         this.incomingMessagesListeners = this.incomingMessagesListeners.filter(fn => fn != fnToRemove);
     }
 
     public sendCommandWithoutResponse(payloadType: number, payload: Object) {
-        this.send({payloadType, payload, msgId: hat()});
+        this.send({payloadType, payload, clientMsgId: this.generateClientMsgId()});
     }
 
-    public sendMultiresponseCommand(multiResponseParams: IMultiResponseParams) {
+    public sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void {
         const {payloadType, payload, onMessage, onError} = multiResponseParams;
         if (this.isConnected()) {
-            const msgId = hat();
+            const clientMsgId = this.generateClientMsgId();
             const message = {
-                clientMsgId: msgId,
-                payloadType
+                clientMsgId: clientMsgId,
+                payloadType,
+                payload
             };
-            const incomingMessagesListener = {
+            const incomingMessagesListener: IIncommingMessagesListener = {
                 message,
                 handler: (msg) => {
                     const shouldUnsubscribe = onMessage(msg);
@@ -205,7 +244,7 @@ export class Connect extends EventEmitter {
                         this.removeIncomingMesssagesListener(incomingMessagesListener);
                     }
                 },
-                shouldProcess: msg => msg.clientMsgId == msgId,
+                shouldProcess: msg => msg.clientMsgId == clientMsgId,
                 disconnectHandler: (err) => {
                     if (onError) {
                         this.removeIncomingMesssagesListener(incomingMessagesListener);
@@ -217,12 +256,66 @@ export class Connect extends EventEmitter {
             this.addIncomingMessagesListener(incomingMessagesListener);
 
             try {
-                this.send({payloadType, payload, msgId});
+                this.send({payloadType, payload, clientMsgId});
             } catch (err) {
-                onError(err);
+                const description = (typeof err === 'string') ? err : 'Message could not be sent due to a problem with the adapter';
+                const error = {
+                    errorCode: SendRequestError.ADAPTER_DISRUPTED,
+                    description
+                };
+                onError(error);
             }
         } else {
-            onError('Adapter not connected');
+            const error = {
+                errorCode: SendRequestError.ADAPTER_DISCONNECTED,
+                description: 'Adapter is not connected'
+            };
+            onError(error);
+        }
+    }
+
+    private generateClientMsgId(): string {
+        return hat();
+    }
+
+    public sendGuaranteedMultiresponseCommand(multiResponseParams: IMultiResponseParams): void {
+        const {payloadType, payload, onMessage, onError} = multiResponseParams;
+        const clientMsgId = this.generateClientMsgId();
+        const message = {
+            clientMsgId: clientMsgId,
+            payloadType,
+            payload
+        };
+        const incomingGuaranteedMessagesListener: IIncommingMessagesListener = {
+            message,
+            handler: (msg) => {
+                const shouldUnsubscribe = onMessage(msg);
+
+                if (shouldUnsubscribe) {
+                    this.removeIncomingMesssagesListener(incomingGuaranteedMessagesListener);
+                }
+            },
+            shouldProcess: msg => {
+                return msg.clientMsgId == clientMsgId
+            },//Should be common, the matching parameters must always be clientMsgId
+            disconnectHandler: (err) => {
+                //Nothing to do for guaranteed commands
+            }
+        };
+
+        this.addGuaranteedIncomingMessagesListener(incomingGuaranteedMessagesListener);
+
+        if (this.isConnected()) {
+            try {
+                this.send({payloadType, payload, clientMsgId});
+            } catch (err) {
+                const description = (typeof err === 'string') ? err : 'Message could not be sent due to a problem with the adapter';
+                const error = {
+                    errorCode: SendRequestError.ADAPTER_DISRUPTED,
+                    description
+                };
+                onError(error);
+            }
         }
     }
 
@@ -246,9 +339,9 @@ export class Connect extends EventEmitter {
         });
     }
 
-    public sendGuaranteedMultiresponseCommand(payloadType: number, payload: Object): Promise<IMessageWOMsgId> {
+    public sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId> {
         return new Promise((resolve, reject) => {
-            this.sendMultiresponseCommand({
+            this.sendGuaranteedMultiresponseCommand({
                 payloadType,
                 payload,
                 onMessage: result => {
@@ -260,23 +353,10 @@ export class Connect extends EventEmitter {
                     return true;
                 },
                 onError: (err) => {
-                    this.sendGuaranteedMultiresponseCommand(payloadType, payload).then(resolve, reject);
+                    reject(err);
                 }
             });
         });
-    }
-
-    public sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId> {
-        if (this.isConnected()) {
-            return this.sendGuaranteedMultiresponseCommand(payloadType, payload);
-        } else {
-            return new Promise((resolve, reject) => {
-                this.callbacksOnConnect.push(() => {
-                    this.sendGuaranteedMultiresponseCommand(payloadType, payload)
-                        .then(resolve, reject);
-                });
-            });
-        }
     }
 
     public onConnect() {
@@ -297,7 +377,7 @@ export class Connect extends EventEmitter {
         this.adapter.onError = function () {
         };
         if (this.adapter.onEnd) {
-            this.adapter.onEnd();
+            this.adapter.onEnd('Adapter being destroyed. Ending connection');
         }
         this.adapter.onEnd = function () {
         };
