@@ -222,6 +222,10 @@ export class Connect {
         this.incomingMessagesListeners = this.incomingMessagesListeners.filter(fn => fn != fnToRemove);
     }
 
+    private removeIncomingGuaranteedMesssagesListener(fnToRemove: IIncommingMessagesListener) {
+        this.guaranteedIncomingMessagesListeners = this.guaranteedIncomingMessagesListeners.filter(fn => fn != fnToRemove);
+    }
+
     public sendCommandWithoutResponse(payloadType: number, payload: Object) {
         this.send({payloadType, payload, clientMsgId: this.generateClientMsgId()});
     }
@@ -292,7 +296,7 @@ export class Connect {
                 const shouldUnsubscribe = onMessage(msg);
 
                 if (shouldUnsubscribe) {
-                    this.removeIncomingMesssagesListener(incomingGuaranteedMessagesListener);
+                    this.removeIncomingGuaranteedMesssagesListener(incomingGuaranteedMessagesListener);
                 }
             },
             shouldProcess: msg => {

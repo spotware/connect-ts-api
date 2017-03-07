@@ -79,6 +79,7 @@ export declare class Connect {
     private addIncomingMessagesListener(fnToAdd);
     private addGuaranteedIncomingMessagesListener(fnToAdd);
     private removeIncomingMesssagesListener(fnToRemove);
+    private removeIncomingGuaranteedMesssagesListener(fnToRemove);
     sendCommandWithoutResponse(payloadType: number, payload: Object): void;
     sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void;
     private generateClientMsgId();
