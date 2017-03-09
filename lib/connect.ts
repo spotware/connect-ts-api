@@ -160,11 +160,6 @@ export class Connect {
         }
     }
 
-    public isError(messageToCheck: IMessage): boolean {
-        //Overwrite this method by your buisness logic
-        return false;
-    }
-
     public processPushEvent(msg, payloadType: number) {
         //Overwrite this method by your business logic
     }

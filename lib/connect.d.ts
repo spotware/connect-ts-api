@@ -60,7 +60,6 @@ export declare class Connect {
     private send(data);
     private onData(data);
     private processData(clientMsgId, payloadType, payload);
-    isError(messageToCheck: IMessage): boolean;
     processPushEvent(msg: any, payloadType: number): void;
     private _onEnd(e);
     isDisconnected(): boolean;
