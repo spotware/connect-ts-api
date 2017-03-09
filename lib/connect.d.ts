@@ -38,7 +38,7 @@ export declare enum SendRequestError {
 }
 export interface IEncoderDecoder {
     encode: (data: IDataToSend) => any;
-    decode: (params?: any) => any;
+    decode: (params: any) => IMessage;
 }
 export interface IDataToSend {
     payloadType: number;
@@ -51,28 +51,17 @@ export declare class Connect {
     private connected;
     private incomingMessagesListeners;
     private guaranteedIncomingMessagesListeners;
-    private callbacksOnConnect;
     private destroyingAdapter;
     constructor(params: IConnectionParams);
     updateAdapter(adapter: any): void;
     start(): Promise<void>;
     private onOpen();
     private callGuaranteedCommands();
-    /**
-     * @deprecated Too consumer-specific. can be confusing. Just use sendGuaranteedCommandWithPayloadtype and handle the
-     * response on consumer.
-     */
-    sendGuaranteedCommand(payloadType: number, params: any): Promise<any>;
-    /**
-     * @deprecated Too consumer-specific. can be confusing. Just use sendCommandWithPayloadtype and handle the
-     * response on consumer.
-     */
-    sendCommand(payloadType: number, params: any): Promise<any>;
     private send(data);
     private onData(data);
-    private processData(clientMsgId, payloadType, msg);
-    isError(payloadType: any): boolean;
-    processPushEvent(msg: any, payloadType: any): void;
+    private processData(clientMsgId, payloadType, payload);
+    isError(messageToCheck: IMessage): boolean;
+    processPushEvent(msg: any, payloadType: number): void;
     private _onEnd(e);
     isDisconnected(): boolean;
     isConnected(): boolean;
@@ -84,8 +73,6 @@ export declare class Connect {
     sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void;
     private generateClientMsgId();
     sendGuaranteedMultiresponseCommand(multiResponseParams: IMultiResponseParams): void;
-    sendCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId>;
-    sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId>;
     onConnect(): void;
     onEnd(e: any): void;
     destroyAdapter(): void;

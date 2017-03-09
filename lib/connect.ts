@@ -1,5 +1,4 @@
 const hat = require('hat');
-import {EventEmitter} from 'events';
 
 interface IIncommingMessagesListener {
     message: IMessage;
@@ -54,7 +53,7 @@ export enum SendRequestError {
 
 export interface IEncoderDecoder {
     encode: (data: IDataToSend) => any;
-    decode: (params?: any) => any;
+    decode: (params: any) => IMessage;
 }
 
 export interface IDataToSend {
@@ -70,7 +69,6 @@ export class Connect {
     private connected = false;
     private incomingMessagesListeners: IIncommingMessagesListener[] = [];
     private guaranteedIncomingMessagesListeners: IIncommingMessagesListener[] = [];
-    private callbacksOnConnect: (() => void)[] = [];
     private destroyingAdapter = false;
 
     constructor(params: IConnectionParams) {
@@ -117,22 +115,6 @@ export class Connect {
         });
     }
 
-    /**
-     * @deprecated Too consumer-specific. can be confusing. Just use sendGuaranteedCommandWithPayloadtype and handle the
-     * response on consumer.
-     */
-    public sendGuaranteedCommand(payloadType: number, params) {
-        return this.sendGuaranteedCommandWithPayloadtype(payloadType, params).then(msg => msg.payload);
-    }
-
-    /**
-     * @deprecated Too consumer-specific. can be confusing. Just use sendCommandWithPayloadtype and handle the
-     * response on consumer.
-     */
-    public sendCommand(payloadType: number, params) {
-        return this.sendCommandWithPayloadtype(payloadType, params).then(msg => msg.payload);
-    }
-
     private send(data: IDataToSend) {
         console.assert(this.adapter, 'Fatal: Adapter must be defined, use updateAdapter');
         const encodedData = this.encodeDecode.encode(data);
@@ -140,25 +122,23 @@ export class Connect {
     }
 
     private onData(data) {
-        data = this.encodeDecode.decode(data);
-        const msg = data.msg;
-        const payloadType = data.payloadType;
-        const clientMsgId = data.clientMsgId;
+        const decodedData = this.encodeDecode.decode(data);
+        const {payload, payloadType, clientMsgId} = decodedData;
 
         if (clientMsgId) {
-            this.processData(clientMsgId, payloadType, msg);
+            this.processData(clientMsgId, payloadType, payload);
         } else {
-            this.processPushEvent(msg, payloadType);
+            this.processPushEvent(payload, payloadType);
         }
     }
 
-    private processData(clientMsgId, payloadType, msg) {
+    private processData(clientMsgId: string, payloadType: number, payload) {
         let isProcessed = false;
 
         const message = {
-            clientMsgId: clientMsgId,
-            payloadType: payloadType,
-            payload: msg
+            clientMsgId,
+            payloadType,
+            payload,
         };
 
         this.incomingMessagesListeners.forEach(listener => {
@@ -176,16 +156,16 @@ export class Connect {
         });
 
         if (!isProcessed) {
-            this.processPushEvent(msg, payloadType);
+            this.processPushEvent(payload, payloadType);
         }
     }
 
-    public isError(payloadType): boolean {
+    public isError(messageToCheck: IMessage): boolean {
         //Overwrite this method by your buisness logic
         return false;
     }
 
-    public processPushEvent(msg, payloadType) {
+    public processPushEvent(msg, payloadType: number) {
         //Overwrite this method by your business logic
     }
 
@@ -321,46 +301,6 @@ export class Connect {
                 onError(error);
             }
         }
-    }
-
-    public sendCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId> {
-        return new Promise((resolve, reject) => {
-            this.sendMultiresponseCommand({
-                payloadType,
-                payload,
-                onMessage: result => {
-                    if (this.isError(result.payloadType)) {
-                        reject(result);
-                    } else {
-                        resolve(result);
-                    }
-                    return true;
-                },
-                onError: (err) => {
-                    reject(err);
-                }
-            });
-        });
-    }
-
-    public sendGuaranteedCommandWithPayloadtype(payloadType: number, payload: Object): Promise<IMessageWOMsgId> {
-        return new Promise((resolve, reject) => {
-            this.sendGuaranteedMultiresponseCommand({
-                payloadType,
-                payload,
-                onMessage: result => {
-                    if (this.isError(result.payloadType)) {
-                        reject(result);
-                    } else {
-                        resolve(result);
-                    }
-                    return true;
-                },
-                onError: (err) => {
-                    reject(err);
-                }
-            });
-        });
     }
 
     public onConnect() {
