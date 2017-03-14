@@ -23,6 +23,7 @@ describe('Connect ts API test', function () {
         let connectionParams = {
             encodeDecode,
             adapter,
+            instanceId: 'test'
         };
         connection = new Connect(connectionParams);
     });

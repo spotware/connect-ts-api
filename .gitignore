@@ -36,7 +36,7 @@ node_modules
 .idea
 
 # javascript compiled files
-spec/**/*.js
+lib/*.js
 
 # typescript source maps
 #*.js.map
