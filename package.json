@@ -1,10 +1,9 @@
 {
   "name": "connect-ts-api",
-  "version": "3.1.0",
-  "main": "lib/connect.js",
+  "version": "3.1.1",
+  "main": "lib/connect.ts",
   "scripts": {
     "lint": "tslint **/*.ts",
-    "build": "tsc lib/connect.ts -d",
     "test": "tsc lib/connect.spec.ts && jasmine"
   },
   "typescript": {

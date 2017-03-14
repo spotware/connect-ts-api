@@ -31,6 +31,7 @@ export interface IAdapter {
 export interface IConnectionParams {
     encodeDecode: IEncoderDecoder
     adapter: IAdapter;
+    instanceId: string;
 }
 
 export interface IMultiResponseParams {
@@ -63,7 +64,8 @@ export interface IDataToSend {
 }
 
 export class Connect {
-
+    //Set an instance ID, optional. Useful when you have multiple instances.
+    private instanceId: string;
     private adapter: IAdapter;
     private encodeDecode: IEncoderDecoder;
     private connected = false;
@@ -72,6 +74,7 @@ export class Connect {
     private destroyingAdapter = false;
 
     constructor(params: IConnectionParams) {
+        this.instanceId = params.instanceId || 'default';
         this.encodeDecode = params.encodeDecode;
         this.adapter = params.adapter;
     }
