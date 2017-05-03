@@ -1,10 +1,23 @@
 {
-    "compilerOptions": {
-        "target": "es5",
-        "noImplicitAny": false,
-        "removeComments": true,
-        "module": "commonjs",
-        "noEmitOnError": true,
-        "preserveConstEnums": true
-    }
+  "compilerOptions": {
+    "declaration": true,
+    "target": "es5",
+    "removeComments": true,
+    "sourceMap": false,
+    "module": "commonjs",
+    "noEmitOnError": true,
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+    "lib": [
+      "dom",
+      "es2015",
+      "es2015.promise"
+    ],
+    "skipLibCheck": true
+  },
+  "include": [
+    "lib/*",
+    "test/*"
+  ]
 }

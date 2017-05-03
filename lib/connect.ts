@@ -1,258 +1,140 @@
+import {ReplaySubject} from "rxjs";
+import {ConnectionAdapter, AdapterConnectionStates, IdMessage} from "connection-adapter";
+
 const hat = require('hat');
 
-interface IIncommingMessagesListener {
-    message: IMessage;
-    handler: (payload: IMessage) => void;
-    shouldProcess: (payload: IMessage) => boolean;
-    disconnectHandler: (err: ISendRequestError) => void;
-}
-
-export interface IMessage {
-    clientMsgId: string;
+export interface Message {
     payloadType: number;
-    payload?: any;
-}
-
-export interface IMessageWOMsgId {
-    payloadType: number;
-    payload?: any;
-}
-
-export interface IAdapter {
-    onOpen: (result?: any) => any;
-    onData: (data?: any) => any;
-    onError: (err: string) => any;
-    onEnd: (err: string) => any;
-    destroy?: () => void;
-    connect: () => any;
-    send: (message: any) => any;
+    payload?: Object;
 }
 
 export interface IConnectionParams {
-    encodeDecode: IEncoderDecoder
-    adapter: IAdapter;
+    adapter: ConnectionAdapter;
     instanceId: string;
 }
 
-export interface IMultiResponseParams {
-    payloadType: number;
-    payload: Object;
-    onMessage: (data) => boolean;
-    onError?: (err: ISendRequestError) => void;
+export interface SendCommand {
+    message: Message; //Message to be sent
+    guaranteed?: boolean; //Will send the message as soon as the connection is established
+    multiResponse?: boolean; //If true, will *not* unsubscribe handler. Consumer will have to unsubscribe manually
+    onResponse?: (data?: Message) => void; //Handler. Data response received, will unsubscribe by default after first response as it is the most common use-case. If not present no handler will be subscribed.
+    onError?: (err: string) => void; //Trigger if message couldn't be sent
 }
 
-export interface ISendRequestError {
-    errorCode: SendRequestError,
-    description: string
-}
-
-export enum SendRequestError {
-    ADAPTER_DISCONNECTED = 1,
-    ADAPTER_DROP = 2,
-    ADAPTER_DISRUPTED = 3
-}
-
-export interface IEncoderDecoder {
-    encode: (data: IDataToSend) => any;
-    decode: (params: any) => IMessage;
-}
-
-export interface IDataToSend {
-    payloadType: number,
-    payload: any,
-    clientMsgId: string
+interface CacheCommand {
+    clientMsgId: string;
+    command: SendCommand;
 }
 
 export class Connect {
     //Set an instance ID, optional. Useful when you have multiple instances.
     private instanceId: string;
-    private adapter: IAdapter;
-    private encodeDecode: IEncoderDecoder;
-    private connected = false;
-    private incomingMessagesListeners: IIncommingMessagesListener[] = [];
-    private guaranteedIncomingMessagesListeners: IIncommingMessagesListener[] = [];
-    private destroyingAdapter = false;
+    private adapter: ConnectionAdapter;
+    private adapterConnected = false;
+    private commandsAwaitingResponse: CacheCommand[] = [];
+    private guaranteedCommandsToBeSent: CacheCommand[] = [];
+    private pushEvents = new ReplaySubject<Message>(null);
 
     constructor(params: IConnectionParams) {
-        this.instanceId = params.instanceId || 'default';
-        this.encodeDecode = params.encodeDecode;
+        this.instanceId = params.instanceId || 'connect';
         this.adapter = params.adapter;
+        this.subscribeToAdapter();
     }
 
-    public updateAdapter(adapter: any) {
-        if (this.adapter) {
-            this.destroyAdapter();
-        }
-        this.adapter = adapter;
-    }
-
-    public start(): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            const adapter = this.adapter;
-            adapter.onOpen = () => {
-                this.onOpen();
-                resolve();
-            };
-            adapter.onData = this.onData.bind(this);
-            adapter.onError = adapter.onEnd = (e) => {
-                reject();
-                this._onEnd(e);
-            };
-
-            adapter.connect();
-        });
+    private subscribeToAdapter(): void {
+        this.adapter.state
+            .filter(state => state === AdapterConnectionStates.CONNECTED)
+            .subscribe(this.onOpen.bind(this));
+        this.adapter.state
+            .filter(state => state === AdapterConnectionStates.DISCONNECTED)
+            .subscribe(this.onEnd.bind(this));
+        this.adapter.data.subscribe(this.onData.bind(this));
     }
 
     private onOpen() {
-        this.connected = true;
-
+        this.adapterConnected = true;
         this.callGuaranteedCommands();
-
-        this.onConnect();
     }
 
     private callGuaranteedCommands(): void {
-        this.guaranteedIncomingMessagesListeners.forEach(listener => {
-            const {clientMsgId, payloadType, payload} = listener.message;
-            this.send({payloadType, payload, clientMsgId: clientMsgId});
+        this.guaranteedCommandsToBeSent.forEach(commandToBeSent => {
+            const {payloadType, payload} = commandToBeSent.command.message;
+            const clientMsgId = commandToBeSent.clientMsgId;
+            this.commandsAwaitingResponse.push(commandToBeSent);
+            this.adapter.send({payloadType, payload, clientMsgId});
+            this.removeCommandFromList(commandToBeSent, this.guaranteedCommandsToBeSent);
         });
     }
 
-    private send(data: IDataToSend) {
-        console.assert(this.adapter, 'Fatal: Adapter must be defined, use updateAdapter');
-        const encodedData = this.encodeDecode.encode(data);
-        this.adapter.send(encodedData);
-    }
-
-    private onData(data) {
-        const decodedData = this.encodeDecode.decode(data);
-        const {payload, payloadType, clientMsgId} = decodedData;
-
-        if (clientMsgId) {
-            this.processData(clientMsgId, payloadType, payload);
+    private onData(data: IdMessage) {
+        if (data.clientMsgId) {
+            this.processData(data);
         } else {
-            this.processPushEvent(payload, payloadType);
+            this.processPushEvent(data);
         }
     }
 
-    private processData(clientMsgId: string, payloadType: number, payload) {
-        let isProcessed = false;
-
-        const message = {
-            clientMsgId,
-            payloadType,
-            payload,
-        };
-
-        this.incomingMessagesListeners.forEach(listener => {
-            if (listener.shouldProcess(message)) {
-                isProcessed = true;
-                listener.handler(message);
-            }
-        });
-
-        this.guaranteedIncomingMessagesListeners.forEach(guaranteedListener => {
-            if (guaranteedListener.shouldProcess(message)) {
-                isProcessed = true;
-                guaranteedListener.handler(message);
-            }
-        });
-
-        if (!isProcessed) {
-            this.processPushEvent(payload, payloadType);
-        }
-    }
-
-    public processPushEvent(msg, payloadType: number) {
-        //Overwrite this method by your business logic
-    }
-
-    private _onEnd(e: string) {
-        this.connected = false;
-        this.incomingMessagesListeners.forEach(listener => {
-            const error = {
-                errorCode: SendRequestError.ADAPTER_DROP,
-                description: `Message with payladType:${listener.message.payloadType} was not sent. Adapter ended with reason: ${e}`
-            };
-            listener.disconnectHandler(error);
-        });
-        this.incomingMessagesListeners = [];
-        this.onEnd(e);
-    }
-
-    public isDisconnected() {
-        return !this.connected;
-    }
-
-    public isConnected() {
-        return this.connected;
-    }
-
-    private addIncomingMessagesListener(fnToAdd: IIncommingMessagesListener) {
-        this.incomingMessagesListeners.push(fnToAdd);
-    }
-
-    private addGuaranteedIncomingMessagesListener(fnToAdd: IIncommingMessagesListener) {
-        this.guaranteedIncomingMessagesListeners.push(fnToAdd);
-    }
-
-    private removeIncomingMesssagesListener(fnToRemove: IIncommingMessagesListener) {
-        this.incomingMessagesListeners = this.incomingMessagesListeners.filter(fn => fn != fnToRemove);
-    }
-
-    private removeIncomingGuaranteedMesssagesListener(fnToRemove: IIncommingMessagesListener) {
-        this.guaranteedIncomingMessagesListeners = this.guaranteedIncomingMessagesListeners.filter(fn => fn != fnToRemove);
-    }
-
-    public sendCommandWithoutResponse(payloadType: number, payload: Object) {
-        this.send({payloadType, payload, clientMsgId: this.generateClientMsgId()});
-    }
-
-    public sendMultiresponseCommand(multiResponseParams: IMultiResponseParams): void {
-        const {payloadType, payload, onMessage, onError} = multiResponseParams;
-        if (this.isConnected()) {
-            const clientMsgId = this.generateClientMsgId();
-            const message = {
-                clientMsgId: clientMsgId,
-                payloadType,
-                payload
-            };
-            const incomingMessagesListener: IIncommingMessagesListener = {
-                message,
-                handler: (msg) => {
-                    const shouldUnsubscribe = onMessage(msg);
-
-                    if (shouldUnsubscribe) {
-                        this.removeIncomingMesssagesListener(incomingMessagesListener);
-                    }
-                },
-                shouldProcess: msg => msg.clientMsgId == clientMsgId,
-                disconnectHandler: (err) => {
-                    if (onError) {
-                        this.removeIncomingMesssagesListener(incomingMessagesListener);
-                        onError(err);
-                    }
+    private processData(data: IdMessage) {
+        this.commandsAwaitingResponse.forEach(sentCommand => {
+            if (sentCommand.clientMsgId === data.clientMsgId) {
+                sentCommand.command.onResponse({payload: data.payload, payloadType: data.payloadType});
+                if (!sentCommand.command.multiResponse) {
+                    this.removeCommandFromList(sentCommand, this.commandsAwaitingResponse);
                 }
-            };
-
-            this.addIncomingMessagesListener(incomingMessagesListener);
-
-            try {
-                this.send({payloadType, payload, clientMsgId});
-            } catch (err) {
-                const description = (typeof err === 'string') ? err : 'Message could not be sent due to a problem with the adapter';
-                const error = {
-                    errorCode: SendRequestError.ADAPTER_DISRUPTED,
-                    description
-                };
-                onError(error);
             }
+        });
+    }
+
+    private removeCommandFromList(commandToRemove: CacheCommand, listUsed: CacheCommand []): void {
+        const commandToRemoveIndex = listUsed.findIndex((command) => {
+            return command.clientMsgId === commandToRemove.clientMsgId
+        });
+        if (commandToRemoveIndex >= 0) {
+            listUsed.splice(commandToRemoveIndex, 1);
+        }
+    }
+
+    public processPushEvent(message: IdMessage) {
+        const {payload, payloadType} = message;
+        this.pushEvents.next({payload, payloadType});
+    }
+
+    private onEnd() {
+        this.adapterConnected = false;
+        this.commandsAwaitingResponse.forEach(sentCommand => {
+            if (!sentCommand.command.guaranteed) {
+                if (Boolean(sentCommand.command.onError)) {
+                    const errDescription = `Message with payladType:${sentCommand.command.message.payloadType} was not sent`;
+                    sentCommand.command.onError(errDescription);
+                }
+                this.removeCommandFromList(sentCommand, this.commandsAwaitingResponse);
+            } else {
+                this.guaranteedCommandsToBeSent.push(sentCommand);
+            }
+        });
+    }
+
+    public sendCommand(command: SendCommand): void {
+        const clientMsgId = this.generateClientMsgId();
+        const commandToCache = {
+            clientMsgId,
+            command
+        };
+        const messageToSend: IdMessage = {
+            clientMsgId,
+            payload: command.message.payload,
+            payloadType: command.message.payloadType
+        };
+        if (this.adapterConnected) {
+            this.commandsAwaitingResponse.push(commandToCache);
+            this.adapter.send(messageToSend);
         } else {
-            const error = {
-                errorCode: SendRequestError.ADAPTER_DISCONNECTED,
-                description: 'Adapter is not connected'
-            };
-            onError(error);
+            if (!command.guaranteed && Boolean(command.onError)) {
+                const errDescription = `Message with payladType:${command.message.payloadType} was not sent`;
+                command.onError(errDescription);
+            } else {
+                this.guaranteedCommandsToBeSent.push(commandToCache);
+            }
         }
     }
 
@@ -260,75 +142,7 @@ export class Connect {
         return hat();
     }
 
-    public sendGuaranteedMultiresponseCommand(multiResponseParams: IMultiResponseParams): void {
-        const {payloadType, payload, onMessage, onError} = multiResponseParams;
-        const clientMsgId = this.generateClientMsgId();
-        const message = {
-            clientMsgId: clientMsgId,
-            payloadType,
-            payload
-        };
-        const incomingGuaranteedMessagesListener: IIncommingMessagesListener = {
-            message,
-            handler: (msg) => {
-                const shouldUnsubscribe = onMessage(msg);
-
-                if (shouldUnsubscribe) {
-                    this.removeIncomingGuaranteedMesssagesListener(incomingGuaranteedMessagesListener);
-                }
-            },
-            shouldProcess: msg => {
-                return msg.clientMsgId == clientMsgId
-            },//Should be common, the matching parameters must always be clientMsgId
-            disconnectHandler: (err) => {
-                //Nothing to do for guaranteed commands
-            }
-        };
-
-        this.addGuaranteedIncomingMessagesListener(incomingGuaranteedMessagesListener);
-
-        if (this.isConnected()) {
-            try {
-                this.send({payloadType, payload, clientMsgId});
-            } catch (err) {
-                const description = (typeof err === 'string') ? err : 'Message could not be sent due to a problem with the adapter';
-                const error = {
-                    errorCode: SendRequestError.ADAPTER_DISRUPTED,
-                    description
-                };
-                onError(error);
-            }
-        }
-    }
-
-    public onConnect() {
-        //Overwrite this method by your business logic
-    }
-
-    public onEnd(e: any) {
-        //Overwrite this method by your business logic
-    }
-
-    public destroyAdapter(): void {
-        if (!this.adapter || this.destroyingAdapter) {
-            return
-        }
-        this.destroyingAdapter = true;
-        this.adapter.onOpen = null;
-        this.adapter.onData = null;
-        this.adapter.onError = function () {
-        };
-        if (this.adapter.onEnd) {
-            this.adapter.onEnd('Adapter being destroyed. Ending connection');
-        }
-        this.adapter.onEnd = function () {
-        };
-        if (this.adapter.destroy) {
-            this.adapter.destroy()
-        }
-        this.adapter.destroy = function () {
-        };
-        this.adapter = null;
-        this.destroyingAdapter = false;
+    public setPushEventHandler(callback: (data: Message) => any): void {
+        this.pushEvents.subscribe(callback);
     }
 }
