@@ -1,8 +1,5 @@
 import test from 'ava';
 
-// import IdMessage = require("connection-adapter");
-// import AdapterConnectionStates = require("connection-adapter");
-// import ConnectionAdapter = require("connection-adapter");
 import {ConnectionAdapter, AdapterConnectionStates, IdMessage} from "connection-adapter";
 
 import {
