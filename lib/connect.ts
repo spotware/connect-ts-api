@@ -104,7 +104,7 @@ export class Connect {
         this.commandsAwaitingResponse.forEach(sentCommand => {
             if (!sentCommand.command.guaranteed) {
                 if (Boolean(sentCommand.command.onError)) {
-                    const errDescription = `Message with payladType:${sentCommand.command.message.payloadType} was not sent`;
+                    const errDescription = `Message with payladType:${sentCommand.command.message.payloadType} was not sent. Connection was closed before sending`;
                     sentCommand.command.onError(errDescription);
                 }
                 this.removeCommandFromList(sentCommand, this.commandsAwaitingResponse);
@@ -130,7 +130,7 @@ export class Connect {
             this.adapter.send(messageToSend);
         } else {
             if (!command.guaranteed && Boolean(command.onError)) {
-                const errDescription = `Message with payladType:${command.message.payloadType} was not sent`;
+                const errDescription = `Message with payladType:${command.message.payloadType} was not sent. Connection is closed`;
                 command.onError(errDescription);
             } else {
                 this.guaranteedCommandsToBeSent.push(commandToCache);
