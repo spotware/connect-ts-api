@@ -1,21 +1,21 @@
 import test from 'ava';
 
-import {ConnectionAdapter, AdapterConnectionStates, IdMessage} from "connection-adapter";
+import {IConnectionAdapter, AdapterConnectionStates, IMessageWithId} from "connection-adapter";
 
 import {
-    Connect,  Message,
-    SendCommand
+    Connect,  IMessage,
+    ISendCommand
 } from "../lib/connect";
 import {ReplaySubject} from "rxjs";
 const MOCK_CLIENT_MSG_ID = '123asd';
 
 test.beforeEach(t => {
-    const adapterDataEmitter = new ReplaySubject<IdMessage>(1);
+    const adapterDataEmitter = new ReplaySubject<IMessageWithId>(1);
     const adapterState = new ReplaySubject<AdapterConnectionStates>(1);
     t.context.adapterDataEmitter = adapterDataEmitter;
 
-    const adapter = <ConnectionAdapter> {
-        send: (data: IdMessage) => {},
+    const adapter = <IConnectionAdapter> {
+        send: (data: IMessageWithId) => {},
         data: adapterDataEmitter,
         state: adapterState,
         connect: (url: string) => {}
@@ -23,12 +23,12 @@ test.beforeEach(t => {
 
     t.context.mockAdapter = adapter;
 
-    t.context.mockMessage = <Message> {
+    t.context.mockMessage = <IMessage> {
         payloadType: 1,
         payload: 'Hello message'
     };
 
-    t.context.mockResponse = <Message> {
+    t.context.mockResponse = <IMessage> {
         payloadType: 2,
         payload: 'Hello response'
     };
@@ -48,7 +48,7 @@ test.beforeEach(t => {
 });
 
 test('Should send and receive message in the expected format', (t) => {
-    const adapter: ConnectionAdapter = t.context.mockAdapter;
+    const adapter: IConnectionAdapter = t.context.mockAdapter;
     const dataEmitter = t.context.adapterDataEmitter;
     const connectApi = t.context.connectApi;
 
@@ -59,9 +59,9 @@ test('Should send and receive message in the expected format', (t) => {
         dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID});
     };
 
-    const command: SendCommand = {
+    const command: ISendCommand = {
         message: t.context.mockMessage,
-        onResponse : (data: Message) => {
+        onResponse : (data: IMessage) => {
             t.deepEqual(t.context.mockResponse, data)
         }
     };
@@ -70,7 +70,7 @@ test('Should send and receive message in the expected format', (t) => {
 });
 
 test('Should send multiresponse command', (t) => {
-    const adapter: ConnectionAdapter = t.context.mockAdapter;
+    const adapter: IConnectionAdapter = t.context.mockAdapter;
     const dataEmitter = t.context.adapterDataEmitter;
     const connectApi = t.context.connectApi;
 
@@ -83,9 +83,9 @@ test('Should send multiresponse command', (t) => {
         dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID});
     };
 
-    const command: SendCommand = {
+    const command: ISendCommand = {
         message: t.context.mockMessage,
-        onResponse : (data: Message) => {
+        onResponse : (data: IMessage) => {
             t.deepEqual(t.context.mockResponse, data)
         },
         multiResponse: true
@@ -95,7 +95,7 @@ test('Should send multiresponse command', (t) => {
 });
 
 test('Should send guaranteed command', (t) => {
-    const adapter: ConnectionAdapter = t.context.mockAdapter;
+    const adapter: IConnectionAdapter = t.context.mockAdapter;
     const dataEmitter = t.context.adapterDataEmitter;
     const connectApi = t.context.connectApi;
 
@@ -106,9 +106,9 @@ test('Should send guaranteed command', (t) => {
         dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID})
     };
 
-    const command: SendCommand = {
+    const command: ISendCommand = {
         message: t.context.mockMessage,
-        onResponse : (data: Message) => {
+        onResponse : (data: IMessage) => {
             t.deepEqual(t.context.mockResponse, data)
         },
         guaranteed: true

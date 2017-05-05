@@ -1,4 +1,5 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 var ava_1 = require("ava");
 var connection_adapter_1 = require("connection-adapter");
 var connect_1 = require("../lib/connect");

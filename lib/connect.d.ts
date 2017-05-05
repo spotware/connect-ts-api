@@ -1,17 +1,17 @@
-import { ConnectionAdapter, IdMessage } from "connection-adapter";
-export interface Message {
+import { IConnectionAdapter, IMessageWithId } from "connection-adapter";
+export interface IMessage {
     payloadType: number;
     payload?: Object;
 }
 export interface IConnectionParams {
-    adapter: ConnectionAdapter;
+    adapter: IConnectionAdapter;
     instanceId: string;
 }
-export interface SendCommand {
-    message: Message;
+export interface ISendCommand {
+    message: IMessage;
     guaranteed?: boolean;
     multiResponse?: boolean;
-    onResponse?: (data?: Message) => void;
+    onResponse?: (data?: IMessage) => void;
     onError?: (err: string) => void;
 }
 export declare class Connect {
@@ -28,9 +28,9 @@ export declare class Connect {
     private onData(data);
     private processData(data);
     private removeCommandFromList(commandToRemove, listUsed);
-    processPushEvent(message: IdMessage): void;
+    processPushEvent(message: IMessageWithId): void;
     private onEnd();
-    sendCommand(command: SendCommand): void;
+    sendCommand(command: ISendCommand): void;
     private generateClientMsgId();
-    setPushEventHandler(callback: (data: Message) => any): void;
+    setPushEventHandler(callback: (data: IMessage) => any): void;
 }

@@ -41,3 +41,5 @@ node_modules
 
 # typescript d.ts
 #lib/*.d.ts
+
+.nyc_output/

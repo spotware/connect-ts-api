@@ -1,39 +1,39 @@
 import {ReplaySubject} from "rxjs";
-import {ConnectionAdapter, AdapterConnectionStates, IdMessage} from "connection-adapter";
+import {IConnectionAdapter, AdapterConnectionStates, IMessageWithId} from "connection-adapter";
 
 const hat = require('hat');
 
-export interface Message {
+export interface IMessage {
     payloadType: number;
     payload?: Object;
 }
 
 export interface IConnectionParams {
-    adapter: ConnectionAdapter;
+    adapter: IConnectionAdapter;
     instanceId: string;
 }
 
-export interface SendCommand {
-    message: Message; //Message to be sent
+export interface ISendCommand {
+    message: IMessage; //IMessage to be sent
     guaranteed?: boolean; //Will send the message as soon as the connection is established
     multiResponse?: boolean; //If true, will *not* unsubscribe handler. Consumer will have to unsubscribe manually
-    onResponse?: (data?: Message) => void; //Handler. Data response received, will unsubscribe by default after first response as it is the most common use-case. If not present no handler will be subscribed.
+    onResponse?: (data?: IMessage) => void; //Handler. Data response received, will unsubscribe by default after first response as it is the most common use-case. If not present no handler will be subscribed.
     onError?: (err: string) => void; //Trigger if message couldn't be sent
 }
 
 interface CacheCommand {
     clientMsgId: string;
-    command: SendCommand;
+    command: ISendCommand;
 }
 
 export class Connect {
     //Set an instance ID, optional. Useful when you have multiple instances.
     private instanceId: string;
-    private adapter: ConnectionAdapter;
+    private adapter: IConnectionAdapter;
     private adapterConnected = false;
     private commandsAwaitingResponse: CacheCommand[] = [];
     private guaranteedCommandsToBeSent: CacheCommand[] = [];
-    private pushEvents = new ReplaySubject<Message>(null);
+    private pushEvents = new ReplaySubject<IMessage>(null);
 
     constructor(params: IConnectionParams) {
         this.instanceId = params.instanceId || 'connect';
@@ -66,7 +66,7 @@ export class Connect {
         });
     }
 
-    private onData(data: IdMessage) {
+    private onData(data: IMessageWithId) {
         if (data.clientMsgId) {
             this.processData(data);
         } else {
@@ -74,7 +74,7 @@ export class Connect {
         }
     }
 
-    private processData(data: IdMessage) {
+    private processData(data: IMessageWithId) {
         this.commandsAwaitingResponse.forEach(sentCommand => {
             if (sentCommand.clientMsgId === data.clientMsgId) {
                 sentCommand.command.onResponse({payload: data.payload, payloadType: data.payloadType});
@@ -94,7 +94,7 @@ export class Connect {
         }
     }
 
-    public processPushEvent(message: IdMessage) {
+    public processPushEvent(message: IMessageWithId) {
         const {payload, payloadType} = message;
         this.pushEvents.next({payload, payloadType});
     }
@@ -114,13 +114,13 @@ export class Connect {
         });
     }
 
-    public sendCommand(command: SendCommand): void {
+    public sendCommand(command: ISendCommand): void {
         const clientMsgId = this.generateClientMsgId();
         const commandToCache = {
             clientMsgId,
             command
         };
-        const messageToSend: IdMessage = {
+        const messageToSend: IMessageWithId = {
             clientMsgId,
             payload: command.message.payload,
             payloadType: command.message.payloadType
@@ -142,7 +142,7 @@ export class Connect {
         return hat();
     }
 
-    public setPushEventHandler(callback: (data: Message) => any): void {
+    public setPushEventHandler(callback: (data: IMessage) => any): void {
         this.pushEvents.subscribe(callback);
     }
 }
