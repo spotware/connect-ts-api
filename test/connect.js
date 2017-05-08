@@ -53,7 +53,7 @@ ava_1.default('Should send and receive message in the expected format', function
     };
     connectApi.sendCommand(command);
 });
-ava_1.default('Should send multiresponse command', function (t) {
+ava_1.default.cb('Should send multiresponse command and unsubscribe after three responses', function (t) {
     var adapter = t.context.mockAdapter;
     var dataEmitter = t.context.adapterDataEmitter;
     var connectApi = t.context.connectApi;
@@ -61,18 +61,29 @@ ava_1.default('Should send multiresponse command', function (t) {
     adapter.send = function (data) {
         t.is(t.context.mockMessage.payloadType, data.payloadType);
         t.is(t.context.mockMessage.payload, data.payload);
-        dataEmitter.next({ payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID });
-        dataEmitter.next({ payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID });
-        dataEmitter.next({ payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID });
+        setTimeout(function () {
+            dataEmitter.next({ payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID });
+            dataEmitter.next({ payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID });
+            dataEmitter.next({ payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID });
+            dataEmitter.next({ payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID });
+        }, 15);
     };
+    var responses = new rxjs_1.BehaviorSubject(0);
     var command = {
         message: t.context.mockMessage,
         onResponse: function (data) {
             t.deepEqual(t.context.mockResponse, data);
+            responses.next(1);
         },
         multiResponse: true
     };
-    connectApi.sendCommand(command);
+    var sentCommand = connectApi.sendCommand(command);
+    responses.scan(function (prev, curr) { return prev + curr; }).subscribe(function (counter) {
+        if (counter === 3) {
+            sentCommand.unsubscribe();
+            t.end();
+        }
+    });
 });
 ava_1.default('Should send guaranteed command', function (t) {
     var adapter = t.context.mockAdapter;
@@ -95,4 +106,13 @@ ava_1.default('Should send guaranteed command', function (t) {
     connectApi.sendCommand(command);
     adapter.state.next(connection_adapter_1.AdapterConnectionStates.CONNECTED);
     connectApi.onOpen();
+});
+ava_1.default('Should handle push events', function (t) {
+    var dataEmitter = t.context.adapterDataEmitter;
+    var connectApi = t.context.connectApi;
+    t.plan(1);
+    connectApi.setPushEventHandler(function (pushEvent) {
+        t.deepEqual(t.context.mockResponse, pushEvent);
+    });
+    dataEmitter.next(t.context.mockResponse);
 });

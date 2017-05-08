@@ -14,6 +14,9 @@ export interface ISendCommand {
     onResponse?: (data?: IMessage) => void;
     onError?: (err: string) => void;
 }
+export interface ISubscribableCommand {
+    unsubscribe: () => void;
+}
 export declare class Connect {
     private instanceId;
     private adapter;
@@ -30,7 +33,9 @@ export declare class Connect {
     private removeCommandFromList(commandToRemove, listUsed);
     processPushEvent(message: IMessageWithId): void;
     private onEnd();
-    sendCommand(command: ISendCommand): void;
+    sendCommand(command: ISendCommand): ISubscribableCommand;
+    private getSubscribableForList(cachedCommand, listUsed);
+    private getEmptySubscribable();
     private generateClientMsgId();
     setPushEventHandler(callback: (data: IMessage) => any): void;
 }

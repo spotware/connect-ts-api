@@ -2,11 +2,8 @@ import test from 'ava';
 
 import {IConnectionAdapter, AdapterConnectionStates, IMessageWithId} from "connection-adapter";
 
-import {
-    Connect,  IMessage,
-    ISendCommand
-} from "../lib/connect";
-import {ReplaySubject} from "rxjs";
+import { Connect,  IMessage, ISendCommand } from "../lib/connect";
+import {BehaviorSubject, ReplaySubject} from "rxjs";
 const MOCK_CLIENT_MSG_ID = '123asd';
 
 test.beforeEach(t => {
@@ -69,7 +66,7 @@ test('Should send and receive message in the expected format', (t) => {
     connectApi.sendCommand(command)
 });
 
-test('Should send multiresponse command', (t) => {
+test.cb('Should send multiresponse command and unsubscribe after three responses', (t) => {
     const adapter: IConnectionAdapter = t.context.mockAdapter;
     const dataEmitter = t.context.adapterDataEmitter;
     const connectApi = t.context.connectApi;
@@ -78,20 +75,31 @@ test('Should send multiresponse command', (t) => {
     adapter.send = (data) => {
         t.is(t.context.mockMessage.payloadType, data.payloadType);
         t.is(t.context.mockMessage.payload, data.payload);
-        dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID});
-        dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID});
-        dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID});
+        setTimeout(() => {
+            dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID});
+            dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID});
+            dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID});
+            dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: MOCK_CLIENT_MSG_ID});
+        }, 15); //Mock a response delay from server
     };
 
+    const responses = new BehaviorSubject(0);
     const command: ISendCommand = {
         message: t.context.mockMessage,
         onResponse : (data: IMessage) => {
-            t.deepEqual(t.context.mockResponse, data)
+            t.deepEqual(t.context.mockResponse, data);
+            responses.next(1);
         },
         multiResponse: true
     };
 
-    connectApi.sendCommand(command)
+    const sentCommand = connectApi.sendCommand(command);
+    responses.scan((prev, curr) => prev + curr).subscribe(counter => {
+        if (counter === 3) {
+            sentCommand.unsubscribe();
+            t.end();
+        }
+    })
 });
 
 test('Should send guaranteed command', (t) => {
@@ -117,4 +125,16 @@ test('Should send guaranteed command', (t) => {
     connectApi.sendCommand(command);
     (<any> adapter).state.next(AdapterConnectionStates.CONNECTED);
     connectApi.onOpen();
+});
+
+test('Should handle push events', (t) => {
+    const dataEmitter = t.context.adapterDataEmitter;
+    const connectApi = t.context.connectApi;
+
+    t.plan(1);
+    connectApi.setPushEventHandler((pushEvent) => {
+        t.deepEqual(t.context.mockResponse, pushEvent);
+    });
+
+    dataEmitter.next(t.context.mockResponse);
 });

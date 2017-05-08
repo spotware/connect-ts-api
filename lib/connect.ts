@@ -21,6 +21,10 @@ export interface ISendCommand {
     onError?: (err: string) => void; //Trigger if message couldn't be sent
 }
 
+export interface ISubscribableCommand {
+    unsubscribe: () => void;
+}
+
 interface CacheCommand {
     clientMsgId: string;
     command: ISendCommand;
@@ -114,9 +118,9 @@ export class Connect {
         });
     }
 
-    public sendCommand(command: ISendCommand): void {
+    public sendCommand(command: ISendCommand): ISubscribableCommand {
         const clientMsgId = this.generateClientMsgId();
-        const commandToCache = {
+        const commandToCache: CacheCommand = {
             clientMsgId,
             command
         };
@@ -127,14 +131,37 @@ export class Connect {
         };
         if (this.adapterConnected) {
             this.commandsAwaitingResponse.push(commandToCache);
-            this.adapter.send(messageToSend);
+            try {
+                this.adapter.send(messageToSend);
+            } catch (e) {
+                const errDescription = `Message with payladType:${command.message.payloadType} was not sent. Adapter could not send command`;
+                command.onError(errDescription);
+            }
+            return this.getSubscribableForList(commandToCache, this.commandsAwaitingResponse);
         } else {
             if (!command.guaranteed && Boolean(command.onError)) {
                 const errDescription = `Message with payladType:${command.message.payloadType} was not sent. Connection is closed`;
                 command.onError(errDescription);
+                return this.getEmptySubscribable();
             } else {
                 this.guaranteedCommandsToBeSent.push(commandToCache);
+                return this.getSubscribableForList(commandToCache, this.guaranteedCommandsToBeSent);
             }
+        }
+
+    }
+
+    private getSubscribableForList(cachedCommand: CacheCommand, listUsed: CacheCommand []): ISubscribableCommand {
+        return {
+            unsubscribe: () => {
+                this.removeCommandFromList(cachedCommand, listUsed);
+            }
+        }
+    }
+
+    private getEmptySubscribable(): ISubscribableCommand {
+        return {
+            unsubscribe: () => {return}
         }
     }
 
