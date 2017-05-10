@@ -169,7 +169,7 @@ export class Connect {
         return hat();
     }
 
-    public setPushEventHandler(callback: (data: IMessage) => any): void {
+    public setPushEventHandler(callback: (data: IMessage) => void): void {
         this.pushEvents.subscribe(callback);
     }
 }
