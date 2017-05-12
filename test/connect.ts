@@ -13,8 +13,8 @@ test.beforeEach(t => {
 
     const adapter = <IConnectionAdapter> {
         send: (data: IMessageWithId) => {},
-        data: adapterDataEmitter,
-        state: adapterState,
+        data$: adapterDataEmitter,
+        state$: adapterState,
         connect: (url: string) => {}
     };
 
@@ -41,7 +41,7 @@ test.beforeEach(t => {
     };
     t.context.connectApi = connectApi;
 
-    (<any> adapter).state.next(AdapterConnectionStates.CONNECTED);
+    (<any> adapter).state$.next(AdapterConnectionStates.CONNECTED);
 });
 
 test('Should send and receive message in the expected format', (t) => {
@@ -121,9 +121,9 @@ test('Should send guaranteed command', (t) => {
         },
         guaranteed: true
     };
-    (<any> adapter).state.next(AdapterConnectionStates.DISCONNECTED);
+    (<any> adapter).state$.next(AdapterConnectionStates.DISCONNECTED);
     connectApi.sendCommand(command);
-    (<any> adapter).state.next(AdapterConnectionStates.CONNECTED);
+    (<any> adapter).state$.next(AdapterConnectionStates.CONNECTED);
     connectApi.onOpen();
 });
 

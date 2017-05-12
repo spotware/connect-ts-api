@@ -46,13 +46,13 @@ export class Connect {
     }
 
     private subscribeToAdapter(): void {
-        this.adapter.state
+        this.adapter.state$
             .filter(state => state === AdapterConnectionStates.CONNECTED)
             .subscribe(this.onOpen.bind(this));
-        this.adapter.state
+        this.adapter.state$
             .filter(state => state === AdapterConnectionStates.DISCONNECTED)
             .subscribe(this.onEnd.bind(this));
-        this.adapter.data.subscribe(this.onData.bind(this));
+        this.adapter.data$.subscribe(this.onData.bind(this));
     }
 
     private onOpen() {

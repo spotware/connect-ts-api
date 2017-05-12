@@ -11,8 +11,8 @@ ava_1.default.beforeEach(function (t) {
     t.context.adapterDataEmitter = adapterDataEmitter;
     var adapter = {
         send: function (data) { },
-        data: adapterDataEmitter,
-        state: adapterState,
+        data$: adapterDataEmitter,
+        state$: adapterState,
         connect: function (url) { }
     };
     t.context.mockAdapter = adapter;
@@ -33,7 +33,7 @@ ava_1.default.beforeEach(function (t) {
         return MOCK_CLIENT_MSG_ID;
     };
     t.context.connectApi = connectApi;
-    adapter.state.next(connection_adapter_1.AdapterConnectionStates.CONNECTED);
+    adapter.state$.next(connection_adapter_1.AdapterConnectionStates.CONNECTED);
 });
 ava_1.default('Should send and receive message in the expected format', function (t) {
     var adapter = t.context.mockAdapter;
@@ -102,9 +102,9 @@ ava_1.default('Should send guaranteed command', function (t) {
         },
         guaranteed: true
     };
-    adapter.state.next(connection_adapter_1.AdapterConnectionStates.DISCONNECTED);
+    adapter.state$.next(connection_adapter_1.AdapterConnectionStates.DISCONNECTED);
     connectApi.sendCommand(command);
-    adapter.state.next(connection_adapter_1.AdapterConnectionStates.CONNECTED);
+    adapter.state$.next(connection_adapter_1.AdapterConnectionStates.CONNECTED);
     connectApi.onOpen();
 });
 ava_1.default('Should handle push events', function (t) {
