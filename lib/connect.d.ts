@@ -37,5 +37,5 @@ export declare class Connect {
     private getSubscribableForList(cachedCommand, listUsed);
     private getEmptySubscribable();
     private generateClientMsgId();
-    setPushEventHandler(callback: (data: IMessage) => any): void;
+    setPushEventHandler(callback: (data: IMessage) => void): void;
 }

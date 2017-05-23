@@ -134,7 +134,8 @@ export class Connect {
             try {
                 this.adapter.send(messageToSend);
             } catch (e) {
-                const errDescription = `Message with payladType:${command.message.payloadType} was not sent. Adapter could not send command`;
+                const errDescription = `Message with payladType:${command.message.payloadType} was not sent. 
+                Adapter could not send command. Reason: ${e}`;
                 command.onError(errDescription);
             }
             return this.getSubscribableForList(commandToCache, this.commandsAwaitingResponse);
@@ -161,7 +162,9 @@ export class Connect {
 
     private getEmptySubscribable(): ISubscribableCommand {
         return {
-            unsubscribe: () => {return}
+            unsubscribe: () => {
+                return null;
+            }
         }
     }
 
