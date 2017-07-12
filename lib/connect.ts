@@ -71,7 +71,7 @@ export class Connect {
     }
 
     private onData(data: IMessageWithId) {
-        if (data.clientMsgId) {
+        if (this.commandsAwaitingResponse.some(item => item.clientMsgId === data.clientMsgId)) {
             this.processData(data);
         } else {
             this.processPushEvent(data);
