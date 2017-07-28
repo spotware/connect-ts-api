@@ -1,7 +1,6 @@
 import {ReplaySubject} from "rxjs";
 import {IConnectionAdapter, AdapterConnectionStates, IMessageWithId} from "connection-adapter";
-
-const hat = require('hat');
+import * as hat from 'hat';
 
 export interface IMessage {
     payloadType: number;

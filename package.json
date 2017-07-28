@@ -6,12 +6,21 @@
   "scripts": {
     "build": "tsc",
     "lint": "tslint **/*.ts",
-    "test": "npm run build && nyc ava",
-    "test-alone": "nyc ava"
+    "test": "jest",
+    "test-alone": "nyc ava",
+    "jest-codemods": "jest-codemods"
   },
-  "ava": {
-    "files": [
-      "test/**.js"
+  "jest": {
+    "transform": {
+      "^.+\\.tsx?$": "<rootDir>/node_modules/ts-jest/preprocessor.js"
+    },
+    "testRegex": "(/test/.*|\\.(test|spec))\\.(tsx?|jsx?)$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "json",
+      "jsx"
     ]
   },
   "files": [
@@ -29,13 +38,15 @@
     "hat": "0.0.3"
   },
   "devDependencies": {
+    "@types/jest": "20.0.5",
     "@types/node": "^6.0.58",
-    "nyc": "10.1.2",
-    "ava": "0.18.1",
+    "connection-adapter": "spotware/connection-adapter#v1.8.0",
     "husky": "0.13.1",
-    "tslint": "3.15.1",
-    "typescript": "2.3.0",
+    "jest": "20.0.4",
+    "nyc": "10.1.2",
     "rxjs": "5.3.0",
-    "connection-adapter": "spotware/connection-adapter#v1.8.0"
+    "ts-jest": "20.0.7",
+    "tslint": "3.15.1",
+    "typescript": "2.3.0"
   }
 }

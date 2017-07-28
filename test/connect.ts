@@ -1,31 +1,33 @@
-import test from 'ava';
+import {AdapterConnectionStates, IConnectionAdapter, IMessageWithId} from "connection-adapter";
 
-import {IConnectionAdapter, AdapterConnectionStates, IMessageWithId} from "connection-adapter";
-
-import { Connect,  IMessage, ISendCommand } from "../lib/connect";
+import {Connect, IMessage, ISendCommand} from "../lib/connect";
 import {BehaviorSubject, ReplaySubject} from "rxjs";
 import {isNull, isUndefined} from "util";
 
-test.beforeEach(t => {
+let context;
+beforeEach(() => {
+    context = {};
     const adapterDataEmitter = new ReplaySubject<IMessageWithId>(1);
     const adapterState = new ReplaySubject<AdapterConnectionStates>(1);
-    t.context.adapterDataEmitter = adapterDataEmitter;
+    context.adapterDataEmitter = adapterDataEmitter;
 
     const adapter = <IConnectionAdapter> {
-        send: (data: IMessageWithId) => {},
+        send: (data: IMessageWithId) => {
+        },
         data$: adapterDataEmitter,
         state$: adapterState,
-        connect: (url: string) => {}
+        connect: (url: string) => {
+        }
     };
 
-    t.context.mockAdapter = adapter;
+    context.mockAdapter = adapter;
 
-    t.context.mockMessage = <IMessage> {
+    context.mockMessage = {
         payloadType: 1,
         payload: 'Hello message'
     };
 
-    t.context.mockResponse = <IMessage> {
+    context.mockResponse = {
         payloadType: 2,
         payload: 'Hello response'
     };
@@ -35,74 +37,77 @@ test.beforeEach(t => {
         instanceId: 'testConnection'
     };
 
-    const connectApi = new Connect(connectParams);
-    const originalGenerateMsgId = (<any> connectApi).generateClientMsgId;
-    (<any> connectApi).generateClientMsgId = () => {
+    const connectApi: any = new Connect(connectParams);
+    const originalGenerateMsgId = connectApi.generateClientMsgId;
+    connectApi.generateClientMsgId = () => {
         const generatedMsgId = originalGenerateMsgId();
-        t.context.generatedMsgId = generatedMsgId;
+        context.generatedMsgId = generatedMsgId;
         return generatedMsgId
     };
-    t.context.connectApi = connectApi;
+    context.connectApi = connectApi;
 
     (<any> adapter).state$.next(AdapterConnectionStates.CONNECTED);
 });
 
-test('Should send and receive message in the expected format', (t) => {
-    const adapter: IConnectionAdapter = t.context.mockAdapter;
-    const dataEmitter = t.context.adapterDataEmitter;
-    const connectApi = t.context.connectApi;
+test('Should send and receive message in the expected format', () => {
+    const adapter: IConnectionAdapter = context.mockAdapter;
+    const dataEmitter = context.adapterDataEmitter;
+    const connectApi = context.connectApi;
 
-    t.plan(3);
+    expect.assertions(3);
     adapter.send = (data) => {
-        t.is(t.context.mockMessage.payloadType, data.payloadType);
-        t.is(t.context.mockMessage.payload, data.payload);
-        dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: t.context.generatedMsgId});
+        expect(context.mockMessage.payloadType).toBe(data.payloadType);
+        expect(context.mockMessage.payload).toBe(data.payload);
+        dataEmitter.next({
+            payloadType: context.mockResponse.payloadType,
+            payload: context.mockResponse.payload,
+            clientMsgId: context.generatedMsgId
+        });
     };
 
     const command: ISendCommand = {
-        message: t.context.mockMessage,
-        onResponse : (data: IMessage) => {
-            t.deepEqual(t.context.mockResponse, data)
+        message: context.mockMessage,
+        onResponse: (data: IMessage) => {
+            expect(context.mockResponse).toEqual(data)
         }
     };
 
     connectApi.sendCommand(command)
 });
 
-test('Should execute error handler on adapter error', (t) => {
-    const adapter: IConnectionAdapter = t.context.mockAdapter;
-    const connectApi = t.context.connectApi;
+test('Should execute error handler on adapter error', done => {
+    const adapter: IConnectionAdapter = context.mockAdapter;
+    const connectApi = context.connectApi;
 
-    t.plan(1);
+    expect.assertions(0);
     adapter.send = () => {
         throw('Could not encode message');
     };
 
     const command: ISendCommand = {
-        message: t.context.mockMessage,
-        onResponse : (data: IMessage) => {
-            t.fail('Should not get response')
+        message: context.mockMessage,
+        onResponse: (data: IMessage) => {
+            done.fail('Should not get response')
         },
         onError: err => {
-            t.pass();
+            done();
         }
     };
 
     connectApi.sendCommand(command)
 });
 
-test('Should execute error handler on adapter disconnected and unsubscribe functions', (t) => {
-    const adapter: IConnectionAdapter = t.context.mockAdapter;
-    const connectApi = t.context.connectApi;
-    t.plan(1);
+test('Should execute error handler on adapter disconnected and unsubscribe functions', done => {
+    const adapter: IConnectionAdapter = context.mockAdapter;
+    const connectApi = context.connectApi;
 
     const command: ISendCommand = {
-        message: t.context.mockMessage,
-        onResponse : (data: IMessage) => {
-            t.fail('Should not get response')
+        message: context.mockMessage,
+        onResponse: (data: IMessage) => {
+            done.fail('Should not get response')
         },
         onError: err => {
-            t.pass();
+            done();
         }
     };
 
@@ -110,78 +115,102 @@ test('Should execute error handler on adapter disconnected and unsubscribe funct
     (<any> adapter).state$.next(AdapterConnectionStates.DISCONNECTED);
 });
 
-test('Should execute error handler on adapter disconnected and get empty subscribable', (t) => {
-    const adapter: IConnectionAdapter = t.context.mockAdapter;
-    const connectApi = t.context.connectApi;
+test('Should execute error handler on adapter disconnected and get empty subscribable', () => {
+    const adapter: IConnectionAdapter = context.mockAdapter;
+    const connectApi = context.connectApi;
     (<any> adapter).state$.next(AdapterConnectionStates.DISCONNECTED);
-    t.plan(2);
+    expect.assertions(2);
 
     const command: ISendCommand = {
-        message: t.context.mockMessage,
-        onResponse : (data: IMessage) => {
-            t.fail('Should not get response')
+        message: context.mockMessage,
+        onResponse: (data: IMessage) => {
+            fail('Should not get response')
         },
         onError: err => {
-            t.pass();
         }
     };
+
+    const spy = jest.spyOn(command, 'onError');
 
     const subscribable = connectApi.sendCommand(command);
-    t.true(isNull(subscribable.unsubscribe()));
+    expect(isNull(subscribable.unsubscribe())).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(1);
 });
 
-test.cb('Should send multiresponse command and unsubscribe after three responses', (t) => {
-    const adapter: IConnectionAdapter = t.context.mockAdapter;
-    const dataEmitter = t.context.adapterDataEmitter;
-    const connectApi = t.context.connectApi;
+test('Should send multiresponse command and unsubscribe after three responses',
+    done => {
+        const adapter: IConnectionAdapter = context.mockAdapter;
+        const dataEmitter = context.adapterDataEmitter;
+        const connectApi = context.connectApi;
 
-    t.plan(6);
+        expect.assertions(6);
+        adapter.send = (data) => {
+            expect(context.mockMessage.payloadType).toBe(data.payloadType);
+            expect(context.mockMessage.payload).toBe(data.payload);
+            setTimeout(() => {
+                dataEmitter.next({
+                    payloadType: context.mockResponse.payloadType,
+                    payload: context.mockResponse.payload,
+                    clientMsgId: context.generatedMsgId
+                });
+                dataEmitter.next({
+                    payloadType: context.mockResponse.payloadType,
+                    payload: context.mockResponse.payload,
+                    clientMsgId: context.generatedMsgId
+                });
+                dataEmitter.next({
+                    payloadType: context.mockResponse.payloadType,
+                    payload: context.mockResponse.payload,
+                    clientMsgId: context.generatedMsgId
+                });
+                dataEmitter.next({
+                    payloadType: context.mockResponse.payloadType,
+                    payload: context.mockResponse.payload,
+                    clientMsgId: context.generatedMsgId
+                });
+            }, 15); //Mock a response delay from server
+        };
+
+        const responses = new BehaviorSubject(0);
+        const command: ISendCommand = {
+            message: context.mockMessage,
+            onResponse: (data: IMessage) => {
+                expect(context.mockResponse).toEqual(data);
+                responses.next(1);
+            },
+            multiResponse: true
+        };
+
+        const sentCommand = connectApi.sendCommand(command);
+        responses.scan((prev, curr) => prev + curr).subscribe(counter => {
+            if (counter === 3) {
+                expect(isUndefined(sentCommand.unsubscribe())).toBe(true);
+                done();
+            }
+        })
+    }
+);
+
+test('Should send guaranteed command', () => {
+    const adapter: IConnectionAdapter = context.mockAdapter;
+    const dataEmitter = context.adapterDataEmitter;
+    const connectApi = context.connectApi;
+
+    expect.assertions(3);
     adapter.send = (data) => {
-        t.is(t.context.mockMessage.payloadType, data.payloadType);
-        t.is(t.context.mockMessage.payload, data.payload);
-        setTimeout(() => {
-            dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: t.context.generatedMsgId});
-            dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: t.context.generatedMsgId});
-            dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: t.context.generatedMsgId});
-            dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: t.context.generatedMsgId});
-        }, 15); //Mock a response delay from server
-    };
-
-    const responses = new BehaviorSubject(0);
-    const command: ISendCommand = {
-        message: t.context.mockMessage,
-        onResponse : (data: IMessage) => {
-            t.deepEqual(t.context.mockResponse, data);
-            responses.next(1);
-        },
-        multiResponse: true
-    };
-
-    const sentCommand = connectApi.sendCommand(command);
-    responses.scan((prev, curr) => prev + curr).subscribe(counter => {
-        if (counter === 3) {
-            t.true(isUndefined(sentCommand.unsubscribe()));
-            t.end();
-        }
-    })
-});
-
-test('Should send guaranteed command', (t) => {
-    const adapter: IConnectionAdapter = t.context.mockAdapter;
-    const dataEmitter = t.context.adapterDataEmitter;
-    const connectApi = t.context.connectApi;
-
-    t.plan(3);
-    adapter.send = (data) => {
-        t.is(t.context.mockMessage.payloadType, data.payloadType);
-        t.is(t.context.mockMessage.payload, data.payload);
-        dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: t.context.generatedMsgId})
+        expect(context.mockMessage.payloadType).toBe(data.payloadType);
+        expect(context.mockMessage.payload).toBe(data.payload);
+        dataEmitter.next({
+            payloadType: context.mockResponse.payloadType,
+            payload: context.mockResponse.payload,
+            clientMsgId: context.generatedMsgId
+        })
     };
 
     const command: ISendCommand = {
-        message: t.context.mockMessage,
-        onResponse : (data: IMessage) => {
-            t.deepEqual(t.context.mockResponse, data)
+        message: context.mockMessage,
+        onResponse: (data: IMessage) => {
+            expect(context.mockResponse).toEqual(data)
         },
         guaranteed: true
     };
@@ -191,43 +220,50 @@ test('Should send guaranteed command', (t) => {
     connectApi.onOpen();
 });
 
-test.cb('Should add guaranteed command to waiting commands if sent when adapter disconnected', (t) => {
-    const adapter: IConnectionAdapter = t.context.mockAdapter;
-    const dataEmitter = t.context.adapterDataEmitter;
-    const connectApi = t.context.connectApi;
-    let allowSendingData = false; //First time we won't send data, mocking a delay before connection drops.
+test(
+    'Should add guaranteed command to waiting commands if sent when adapter disconnected',
+    done => {
+        const adapter: IConnectionAdapter = context.mockAdapter;
+        const dataEmitter = context.adapterDataEmitter;
+        const connectApi = context.connectApi;
+        let allowSendingData = false; //First time we won't send data, mocking a delay before connection drops.
 
-    t.plan(3);
-    adapter.send = (data) => {
-        if (allowSendingData === true) {
-            t.is(t.context.mockMessage.payloadType, data.payloadType);
-            t.is(t.context.mockMessage.payload, data.payload);
-            dataEmitter.next({payloadType: t.context.mockResponse.payloadType, payload: t.context.mockResponse.payload, clientMsgId: t.context.generatedMsgId})
-        }
-    };
+        expect.assertions(3);
+        adapter.send = (data) => {
+            if (allowSendingData === true) {
+                expect(context.mockMessage.payloadType).toBe(data.payloadType);
+                expect(context.mockMessage.payload).toBe(data.payload);
+                dataEmitter.next({
+                    payloadType: context.mockResponse.payloadType,
+                    payload: context.mockResponse.payload,
+                    clientMsgId: context.generatedMsgId
+                })
+            }
+        };
 
-    const command: ISendCommand = {
-        message: t.context.mockMessage,
-        onResponse : (data: IMessage) => {
-            t.deepEqual(t.context.mockResponse, data);
-            t.end();
-        },
-        guaranteed: true
-    };
-    connectApi.sendCommand(command);
-    (<any> adapter).state$.next(AdapterConnectionStates.DISCONNECTED);
-    allowSendingData = true;// After the first disconnection we allow sending data, so the guaranteed subscriber will trigger and finish the test
-    (<any> adapter).state$.next(AdapterConnectionStates.CONNECTED);
-});
+        const command: ISendCommand = {
+            message: context.mockMessage,
+            onResponse: (data: IMessage) => {
+                expect(context.mockResponse).toEqual(data);
+                done();
+            },
+            guaranteed: true
+        };
+        connectApi.sendCommand(command);
+        (<any> adapter).state$.next(AdapterConnectionStates.DISCONNECTED);
+        allowSendingData = true;// After the first disconnection we allow sending data, so the guaranteed subscriber will trigger and finish the test
+        (<any> adapter).state$.next(AdapterConnectionStates.CONNECTED);
+    }
+);
 
-test('Should handle push events', (t) => {
-    const dataEmitter = t.context.adapterDataEmitter;
-    const connectApi = t.context.connectApi;
+test('Should handle push events', () => {
+    const dataEmitter = context.adapterDataEmitter;
+    const connectApi = context.connectApi;
 
-    t.plan(1);
+    expect.assertions(1);
     connectApi.setPushEventHandler((pushEvent) => {
-        t.deepEqual(t.context.mockResponse, pushEvent);
+        expect(context.mockResponse).toEqual(pushEvent);
     });
 
-    dataEmitter.next(t.context.mockResponse);
+    dataEmitter.next(context.mockResponse);
 });
