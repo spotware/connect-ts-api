@@ -10,6 +10,7 @@ export interface IMessage {
 export interface IConnectionParams {
     adapter: IConnectionAdapter;
     instanceId: string;
+    payloadTypesNotAwaitingResponse?: number[];
 }
 
 export interface ISendCommand {
@@ -37,10 +38,12 @@ export class Connect {
     private commandsAwaitingResponse: CacheCommand[] = [];
     private guaranteedCommandsToBeSent: CacheCommand[] = [];
     private pushEvents = new ReplaySubject<IMessage>(null);
+    private payloadTypesNotAwaitingResponse: number[];
 
     constructor(params: IConnectionParams) {
         this.instanceId = params.instanceId || 'connect';
         this.adapter = params.adapter;
+        this.payloadTypesNotAwaitingResponse = params.payloadTypesNotAwaitingResponse || [];
         this.subscribeToAdapter();
     }
 
@@ -129,7 +132,9 @@ export class Connect {
             payloadType: command.message.payloadType
         };
         if (this.adapterConnected) {
-            this.commandsAwaitingResponse.push(commandToCache);
+            if (this.payloadTypesNotAwaitingResponse.indexOf(command.message.payloadType) === -1) {
+                this.commandsAwaitingResponse.push(commandToCache);
+            }
             try {
                 this.adapter.send(messageToSend);
             } catch (e) {

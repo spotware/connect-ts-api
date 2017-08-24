@@ -6,6 +6,7 @@ export interface IMessage {
 export interface IConnectionParams {
     adapter: IConnectionAdapter;
     instanceId: string;
+    payloadTypesNotAwaitingResponse?: number[];
 }
 export interface ISendCommand {
     message: IMessage;
@@ -24,6 +25,7 @@ export declare class Connect {
     private commandsAwaitingResponse;
     private guaranteedCommandsToBeSent;
     private pushEvents;
+    private payloadTypesNotAwaitingResponse;
     constructor(params: IConnectionParams);
     private subscribeToAdapter();
     private onOpen();

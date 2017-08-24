@@ -1,6 +1,6 @@
 {
   "name": "connect-ts-api",
-  "version": "4.4.3",
+  "version": "4.5.0",
   "main": "lib/connect.js",
   "typings": "lib/connect",
   "scripts": {
