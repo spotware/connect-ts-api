@@ -1,5 +1,5 @@
-import {ReplaySubject} from "rxjs";
-import {IConnectionAdapter, AdapterConnectionStates, IMessageWithId} from "connection-adapter";
+import {ReplaySubject} from 'rxjs';
+import {AdapterConnectionStates, IConnectionAdapter, IMessageWithId} from 'connection-adapter';
 import * as hat from 'hat';
 
 export interface IMessage {
@@ -66,7 +66,7 @@ export class Connect {
         this.guaranteedCommandsToBeSent.forEach(commandToBeSent => {
             const {payloadType, payload} = commandToBeSent.command.message;
             const clientMsgId = commandToBeSent.clientMsgId;
-            this.commandsAwaitingResponse.push(commandToBeSent);
+            this.addCommandToList(commandToBeSent, this.commandsAwaitingResponse);
             this.adapter.send({payloadType, payload, clientMsgId});
             this.removeCommandFromList(commandToBeSent, this.guaranteedCommandsToBeSent);
         });
@@ -100,6 +100,12 @@ export class Connect {
         }
     }
 
+    private addCommandToList(commandToAdd: CacheCommand, listUsed: CacheCommand []): void {
+        if (listUsed.findIndex(command => command.clientMsgId === commandToAdd.clientMsgId) === -1) {
+            listUsed.push(commandToAdd);
+        }
+    }
+
     public processPushEvent(message: IMessageWithId) {
         const {payload, payloadType} = message;
         this.pushEvents.next({payload, payloadType});
@@ -115,7 +121,7 @@ export class Connect {
                 }
                 this.removeCommandFromList(sentCommand, this.commandsAwaitingResponse);
             } else {
-                this.guaranteedCommandsToBeSent.push(sentCommand);
+                this.addCommandToList(sentCommand, this.guaranteedCommandsToBeSent);
             }
         });
     }
@@ -133,7 +139,7 @@ export class Connect {
         };
         if (this.adapterConnected) {
             if (this.payloadTypesNotAwaitingResponse.indexOf(command.message.payloadType) === -1) {
-                this.commandsAwaitingResponse.push(commandToCache);
+                this.addCommandToList(commandToCache, this.commandsAwaitingResponse);
             }
             try {
                 this.adapter.send(messageToSend);
@@ -149,7 +155,7 @@ export class Connect {
                 command.onError(errDescription);
                 return this.getEmptySubscribable();
             } else {
-                this.guaranteedCommandsToBeSent.push(commandToCache);
+                this.addCommandToList(commandToCache, this.guaranteedCommandsToBeSent);
                 return this.getSubscribableForList(commandToCache, this.guaranteedCommandsToBeSent);
             }
         }

@@ -1,8 +1,8 @@
-import {AdapterConnectionStates, IConnectionAdapter, IMessageWithId} from "connection-adapter";
+import {AdapterConnectionStates, IConnectionAdapter, IMessageWithId} from 'connection-adapter';
 
-import {Connect, IMessage, ISendCommand} from "../lib/connect";
-import {BehaviorSubject, ReplaySubject} from "rxjs";
-import {isNull, isUndefined} from "util";
+import {Connect, IMessage, ISendCommand} from '../lib/connect';
+import {BehaviorSubject, ReplaySubject} from 'rxjs';
+import {isNull, isUndefined} from 'util';
 
 let context;
 beforeEach(() => {
@@ -251,8 +251,30 @@ test(
         };
         connectApi.sendCommand(command);
         (<any> adapter).state$.next(AdapterConnectionStates.DISCONNECTED);
-        allowSendingData = true;// After the first disconnection we allow sending data, so the guaranteed subscriber will trigger and finish the test
+        allowSendingData = true; // After the first disconnection we allow sending data, so the guaranteed subscriber will trigger and finish the test
         (<any> adapter).state$.next(AdapterConnectionStates.CONNECTED);
+    }
+);
+
+test('Should send guaranteed command one time after multiple adapter reconnections', () => {
+        const adapter: IConnectionAdapter = context.mockAdapter;
+        const connectApi = context.connectApi;
+
+        const command: ISendCommand = {
+            message: context.mockMessage,
+            guaranteed: true
+        };
+        connectApi.sendCommand(command);
+        (<any> adapter).state$.next(AdapterConnectionStates.DISCONNECTED);
+        (<any> adapter).state$.next(AdapterConnectionStates.CONNECTED);
+        (<any> adapter).state$.next(AdapterConnectionStates.DISCONNECTED);
+        (<any> adapter).state$.next(AdapterConnectionStates.CONNECTED);
+        (<any> adapter).state$.next(AdapterConnectionStates.DISCONNECTED);
+        (<any> adapter).state$.next(AdapterConnectionStates.CONNECTED);
+        (<any> adapter).state$.next(AdapterConnectionStates.DISCONNECTED);
+        adapter.send = jest.fn();
+        (<any> adapter).state$.next(AdapterConnectionStates.CONNECTED);
+        expect((<any> adapter).send.mock.calls).toHaveLength(1);
     }
 );
 

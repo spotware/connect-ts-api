@@ -1,4 +1,4 @@
-import { IConnectionAdapter, IMessageWithId } from "connection-adapter";
+import { IConnectionAdapter, IMessageWithId } from 'connection-adapter';
 export interface IMessage {
     payloadType: number;
     payload?: Object;
@@ -33,6 +33,7 @@ export declare class Connect {
     private onData(data);
     private processData(data);
     private removeCommandFromList(commandToRemove, listUsed);
+    private addCommandToList(commandToAdd, listUsed);
     processPushEvent(message: IMessageWithId): void;
     private onEnd();
     sendCommand(command: ISendCommand): ISubscribableCommand;

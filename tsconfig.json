@@ -17,7 +17,6 @@
     "skipLibCheck": true
   },
   "include": [
-    "lib/*",
-    "test/*"
+    "lib/*"
   ]
 }
