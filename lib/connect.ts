@@ -37,7 +37,7 @@ export class Connect {
     private adapterConnected = false;
     private commandsAwaitingResponse: CacheCommand[] = [];
     private guaranteedCommandsToBeSent: CacheCommand[] = [];
-    private pushEvents = new ReplaySubject<IMessage>(null);
+    private pushEvents = new ReplaySubject<IMessage>(1);
     private payloadTypesNotAwaitingResponse: number[];
 
     constructor(params: IConnectionParams) {
