@@ -1,6 +1,6 @@
 "use strict";
 exports.__esModule = true;
-var connect_1 = require("../lib/connect");
+var connect_1 = require("../src/connect");
 describe('Connect ts API test', function () {
     var adapter;
     var encodeDecode = {

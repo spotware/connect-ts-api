@@ -1,6 +1,6 @@
 import {AdapterConnectionStates, IConnectionAdapter, IMessageWithId} from 'connection-adapter';
 
-import {Connect, IMessage, ISendCommand} from '../lib/connect';
+import {Connect, IMessage, ISendCommand} from '../src/connect';
 import {BehaviorSubject, ReplaySubject} from 'rxjs';
 import {isNull, isUndefined} from 'util';
 
