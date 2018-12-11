@@ -33,7 +33,7 @@
     "ctratder"
   ],
   "author": "Spotware Services <connect@spotware.com>",
-  "private": true,
+  "private": false,
   "dependencies": {
     "hat": "0.0.3"
   },
