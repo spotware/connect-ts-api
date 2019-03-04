@@ -7,6 +7,7 @@ export interface IConnectionParams {
     adapter: IConnectionAdapter;
     instanceId: string;
     payloadTypesNotAwaitingResponse?: number[];
+    generateClientMsgId?(): string;
 }
 export interface ISendCommand {
     message: IMessage;
@@ -26,6 +27,7 @@ export declare class Connect {
     private guaranteedCommandsToBeSent;
     private pushEvents;
     private payloadTypesNotAwaitingResponse;
+    private readonly generateClientMsgId;
     constructor(params: IConnectionParams);
     private subscribeToAdapter();
     private onOpen();
@@ -39,6 +41,5 @@ export declare class Connect {
     sendCommand(command: ISendCommand): ISubscribableCommand;
     private getSubscribableForList(cachedCommand, listUsed);
     private getEmptySubscribable();
-    private generateClientMsgId();
     setPushEventHandler(callback: (data: IMessage) => void): void;
 }

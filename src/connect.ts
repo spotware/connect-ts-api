@@ -11,6 +11,7 @@ export interface IConnectionParams {
     adapter: IConnectionAdapter;
     instanceId: string;
     payloadTypesNotAwaitingResponse?: number[];
+    generateClientMsgId?(): string;
 }
 
 export interface ISendCommand {
@@ -39,11 +40,13 @@ export class Connect {
     private guaranteedCommandsToBeSent: CacheCommand[] = [];
     private pushEvents = new ReplaySubject<IMessage>(1);
     private payloadTypesNotAwaitingResponse: number[];
+    private readonly generateClientMsgId: () => string;
 
     constructor(params: IConnectionParams) {
         this.instanceId = params.instanceId || 'connect';
         this.adapter = params.adapter;
         this.payloadTypesNotAwaitingResponse = params.payloadTypesNotAwaitingResponse || [];
+        this.generateClientMsgId = params.generateClientMsgId || hat;
         this.subscribeToAdapter();
     }
 
@@ -176,10 +179,6 @@ export class Connect {
                 return null;
             }
         }
-    }
-
-    private generateClientMsgId(): string {
-        return hat();
     }
 
     public setPushEventHandler(callback: (data: IMessage) => void): void {
