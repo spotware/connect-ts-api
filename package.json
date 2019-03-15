@@ -1,6 +1,6 @@
 {
   "name": "connect-ts-api",
-  "version": "4.7.1",
+  "version": "4.7.2",
   "main": "lib/connect.js",
   "typings": "lib/connect",
   "scripts": {
@@ -45,7 +45,7 @@
     "@types/jest": "20.0.5",
     "@types/node": "6.0.58",
     "babel-jest": "^23.4.2",
-    "connection-adapter": "spotware/connection-adapter#v1.8.3",
+    "connection-adapter": "spotware/connection-adapter#v1.8.4",
     "husky": "0.13.1",
     "jest": "^23.4.2",
     "jest-cli": "^24.5.0",
