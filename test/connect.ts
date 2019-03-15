@@ -1,8 +1,10 @@
+import {BehaviorSubject, ReplaySubject} from 'rxjs';
+import {scan} from 'rxjs/operators';
+import {isNull, isUndefined} from 'util';
+
 import {AdapterConnectionStates, IConnectionAdapter, IMessageWithId} from 'connection-adapter';
 
 import {Connect, IMessage, ISendCommand} from '../src/connect';
-import {BehaviorSubject, ReplaySubject} from 'rxjs';
-import {isNull, isUndefined} from 'util';
 
 let context;
 beforeEach(() => {
@@ -182,7 +184,7 @@ test('Should send multiresponse command and unsubscribe after three responses',
         };
 
         const sentCommand = connectApi.sendCommand(command);
-        responses.scan((prev, curr) => prev + curr).subscribe(counter => {
+        responses.pipe(scan((prev, curr) => prev + curr)).subscribe(counter => {
             if (counter === 3) {
                 expect(isUndefined(sentCommand.unsubscribe())).toBe(true);
                 done();

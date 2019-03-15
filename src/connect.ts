@@ -1,5 +1,8 @@
 import {ReplaySubject} from 'rxjs';
+import {filter} from 'rxjs/operators';
+
 import {AdapterConnectionStates, IConnectionAdapter, IMessageWithId} from 'connection-adapter';
+
 import * as hat from 'hat';
 
 export interface IMessage {
@@ -51,12 +54,14 @@ export class Connect {
     }
 
     private subscribeToAdapter(): void {
-        this.adapter.state$
-            .filter(state => state === AdapterConnectionStates.CONNECTED)
-            .subscribe(this.onOpen.bind(this));
-        this.adapter.state$
-            .filter(state => state === AdapterConnectionStates.DISCONNECTED)
-            .subscribe(this.onEnd.bind(this));
+        this.adapter.state$.pipe(
+            filter(state => state === AdapterConnectionStates.CONNECTED)
+        ).subscribe(this.onOpen.bind(this));
+
+        this.adapter.state$.pipe(
+            filter(state => state === AdapterConnectionStates.DISCONNECTED)
+        ).subscribe(this.onEnd.bind(this));
+
         this.adapter.data$.subscribe(this.onData.bind(this));
     }
 
