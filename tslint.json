@@ -1,4 +1,10 @@
 {
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ],
   "rules": {
     "whitespace": [
       true,

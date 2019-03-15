@@ -5,7 +5,7 @@
   "typings": "lib/connect",
   "scripts": {
     "build": "tsc",
-    "lint": "tslint **/*.ts",
+    "lint": "tslint -c tslint.json --project tsconfig.json",
     "test": "jest",
     "test-alone": "nyc ava",
     "jest-codemods": "jest-codemods"
@@ -37,16 +37,22 @@
   "dependencies": {
     "hat": "0.0.3"
   },
+  "peerDependencies": {
+    "rxjs": "^5 || ^6",
+    "@spotware/connection-adapter": "^1.8"
+  },
   "devDependencies": {
     "@types/jest": "20.0.5",
-    "@types/node": "^6.0.58",
-    "connection-adapter": "spotware/connection-adapter#v1.8.0",
+    "@types/node": "6.0.58",
+    "babel-jest": "^23.4.2",
+    "connection-adapter": "spotware/connection-adapter#v1.8.3",
     "husky": "0.13.1",
-    "jest": "20.0.4",
+    "jest": "^23.4.2",
+    "jest-cli": "^24.5.0",
     "nyc": "10.1.2",
-    "rxjs": "5.3.0",
-    "ts-jest": "20.0.7",
+    "rxjs": "5.6.0-forward-compat.5",
+    "ts-jest": "^23.1.4",
     "tslint": "3.15.1",
-    "typescript": "2.3.0"
+    "typescript": "^3.3.3333"
   }
 }
